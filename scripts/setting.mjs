@@ -2,13 +2,13 @@ import TypingAlert from "./typingAlert.mjs";
 
 export default class Setting {
 	static get(key) {
-		return game.settings.get("mrkb-chat-enhancements", key);
+		return game.settings.get("whiston-FVTT-private-module", key);
 	}
 	static set(type, url) {
-	    game.settings.set("mrkb-chat-enhancements", type, url);
+	    game.settings.set("whiston-FVTT-private-module", type, url);
 	}
 	static register() {
-		game.settings.register("mrkb-chat-enhancements", "font-size", {
+		game.settings.register("whiston-FVTT-private-module", "font-size", {
 			name: "MRKB.FontSize",
 			hint: "MRKB.FontSizeHint",
 			scope: "client",
@@ -21,7 +21,7 @@ export default class Setting {
 			default: 14,
 			onChange: (value) => document.querySelector(".chat-log").style.setProperty("--font-size", value + "px")
 		});
-		game.settings.register("mrkb-chat-enhancements", "use-portrait", {
+		game.settings.register("whiston-FVTT-private-module", "use-portrait", {
 			name: "MRKB.UsePortrait",
 			hint: "MRKB.UsePortraitHint",
 			scope: "world",
@@ -30,7 +30,7 @@ export default class Setting {
 			default: true,
 			onChange: () => window.location.reload()
 		});
-		game.settings.register("mrkb-chat-enhancements", "chat-merge", {
+		game.settings.register("whiston-FVTT-private-module", "chat-merge", {
 			name: "MRKB.ChatMerge",
 			hint: "MRKB.ChatMergeHint",
 			scope: "client",
@@ -39,7 +39,7 @@ export default class Setting {
 			default: true,
 			onChange: () => window.location.reload()
 		});
-		game.settings.register("mrkb-chat-enhancements", "colored-chat", {
+		game.settings.register("whiston-FVTT-private-module", "colored-chat", {
 			name: "MRKB.ColoredChat",
 			hint: "MRKB.ColoredChatHint",
 			scope: "client",
@@ -51,7 +51,7 @@ export default class Setting {
 				chatLog.classList.toggle("color-applied", value);
 			}
 		});
-		game.settings.register("mrkb-chat-enhancements", "new-font", {
+		game.settings.register("whiston-FVTT-private-module", "new-font", {
 			name: "MRKB.NewFont",
 			hint: "MRKB.NewFontHint",
 			scope: "client",
@@ -64,14 +64,14 @@ export default class Setting {
 			}
 		});
 
-		game.settings.register("mrkb-chat-enhancements", "actor-favorites", {
+		game.settings.register("whiston-FVTT-private-module", "actor-favorites", {
 			name: "액터 즐겨찾기",
 			scope: "client",
 			config: false,
 			type: Array,
 			default: []
 		});
-		game.settings.register("mrkb-chat-enhancements", "talk-mode", {
+		game.settings.register("whiston-FVTT-private-module", "talk-mode", {
 			name: "대화 모드",
 			scope: "client",
 			config: false,
@@ -81,7 +81,7 @@ export default class Setting {
 		
 		/*UTILITY*/
 
-		game.settings.register("mrkb-chat-enhancements", "typing-players", {
+		game.settings.register("whiston-FVTT-private-module", "typing-players", {
 			name: "입력 중인 플레이어",
 			scope: "client",
 			config: false,
@@ -92,7 +92,7 @@ export default class Setting {
 
 		/*UI Toggle*/
 
-		game.settings.register("mrkb-chat-enhancements", "ui-actor", {
+		game.settings.register("whiston-FVTT-private-module", "ui-actor", {
 			name: "액터 셀렉터 토글",
 			hint: "",
 			scope: "client",
@@ -100,7 +100,7 @@ export default class Setting {
 			type: Boolean,
 			default: false
 		});
-		game.settings.register("mrkb-chat-enhancements", "ui-favorites", {
+		game.settings.register("whiston-FVTT-private-module", "ui-favorites", {
 			name: "액터 즐겨찾기 토글",
 			hint: "",
 			scope: "client",
@@ -108,7 +108,7 @@ export default class Setting {
 			type: Boolean,
 			default: true
 		});
-		game.settings.register("mrkb-chat-enhancements", "ui-msgMode", {
+		game.settings.register("whiston-FVTT-private-module", "ui-msgMode", {
 			name: "메시지 모드 토글",
 			hint: "",
 			scope: "client",
