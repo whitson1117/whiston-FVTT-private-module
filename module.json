@@ -1,20 +1,40 @@
 {
-  "id": "module",
-  "title": "New Module",
-  "description": "",
-  "version": "#{VERSION}#",
-  "library": "false",
-  "manifestPlusVersion": "1.2.0",
+  "id": "whiston-FVTT-private-module",
+  "title": "whitson FVTT private module",
+  "description": "using only for my private",
+  "version": "0.1",
   "compatibility": {
-    "minimum": 10,
-    "verified": 10,
+    "minimum": 13,
+    "verified": 13.351,
     "maximum": 11
   },
   "authors": [
     {
-      "name": "The League of Extraordinary FVTT Developers",
-      "url": "https://github.com/League-of-Foundry-Developers",
-      "discord": "discordID#0001"
+      "name": "whiston"
+    },
+    {
+      "authorship": "MRKB"
+    },
+    {
+      "authorship": "Ken L"
+    },
+    {
+      "authorship": "Noah Zorbaugh"
+    },
+    {
+      "authorship": "U~man"
+    },
+    {
+      "authorship": "KaKaRoTo"
+    },
+    {
+      "authorship": "elizeuangelo"
+    },
+    {
+      "authorship": "p4535992"
+    },
+    {
+      "authorship": "samulopez"
     }
   ],
   "relationships": {
@@ -22,13 +42,13 @@
     "requires": []
   },
   "esmodules": [
-    "scripts/module.js"
+    "scripts/main.js"
   ],
   "scripts": [
     "scripts/lib/lib.js"
   ],
   "styles": [
-    "styles/module.css"
+    "styles/main.css"
   ],
   "languages": [
     {
@@ -37,9 +57,9 @@
       "path": "languages/en.json"
     }
   ],
-  "url": "#{URL}#",
-  "manifest": "#{MANIFEST}#",
-  "download": "#{DOWNLOAD}#",
+  "url": "https://github.com/whitson1117/whiston-FVTT-private-module",
+  "manifest": "https://raw.githubusercontent.com/whitson1117/whiston-FVTT-private-module/main/module.json",
+  "download": "https://github.com/whitson1117/whiston-FVTT-private-module/archive/refs/heads/main.zip",
   "license": "LICENSE",
   "readme": "README.md",
   "media": [
