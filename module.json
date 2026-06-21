@@ -17,7 +17,7 @@
     "requires": []
   },
   "esmodules": [
-    "scripts/main.js"
+    "scripts/main.mjs"
   ],
   "scripts": [
     "scripts/lib/lib.js"
