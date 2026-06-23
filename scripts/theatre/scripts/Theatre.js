@@ -460,6 +460,7 @@ export class Theatre {
      */
     _initSocket() {
         // module socket
+        Hooks.once("socketlib.ready", registerSocket);
         registerSocket();
         theatreSocket.register("processEvent", (payload) => {
             Logger.debug("Received packet", payload);
@@ -1832,13 +1833,10 @@ export class Theatre {
         let resName =
             emote && params.emotes[emote] && params.emotes[emote].insert ? params.emotes[emote].insert : params.src;
 
-        const texture = await this._loadPixiAsset(resName).catch((error) => {
-            Logger.warn("Theatre could not load tooltip texture %s", false, resName, error);
-            return null;
-        });
+        const texture = await PIXI.Assets.load(resName);
 
         if (!texture) {
-            Logger.warn("Theatre could not load texture for tooltip %s", false, resName);
+            Logger.error("ERROR could not load texture (for tooltip) %s", true, resName);
             return;
         }
 
@@ -1947,14 +1945,7 @@ export class Theatre {
                 const animSyntax = anim.syntax;
                 const tweenParams = Theatre.verifyAnimationSyntax(animSyntax);
                 const resTarget = rigResMap.find((e) => e.name == tweenParams[0].resName);
-                if (!resTarget?.path) {
-                    Logger.warn("Theatre could not find rigging resource %s", false, tweenParams[0].resName);
-                    return;
-                }
-                const textureEmote = await this._loadPixiAsset(resTarget.path).catch((error) => {
-                    Logger.warn("Theatre could not load tooltip emote texture %s", false, resTarget.path, error);
-                    return null;
-                });
+                const textureEmote = await PIXI.Assets.load(resTarget.path);
                 Logger.debug(
                     "Adding tweens for animation '%s' from syntax: %s with params: ",
                     animName,
@@ -1962,10 +1953,10 @@ export class Theatre {
                     tweenParams,
                 );
                 if (!textureEmote) {
-                    Logger.warn(
-                        'Theatre could not display tooltip resource "%s" from "%s".',
+                    Logger.error(
+                        'ERROR: resource name : "%s" with path "%s" does not exist!',
                         false,
-                        tweenParams[0].resName,
+                        tweenParams[idx].resName,
                         resTarget.path,
                     );
                     return;
@@ -3074,18 +3065,11 @@ export class Theatre {
         Logger.debug("adding sprite to dockContainer");
 
         const resources = {};
-        const uniqueSources = new Map();
-        for (const {resname, imgpath} of imgSrcs) uniqueSources.set(`${resname}:${imgpath}`, {resname, imgpath});
-
-        await Promise.all(Array.from(uniqueSources.values()).map(async ({ resname, imgpath }) => {
-            try {
-                resources[resname] = resources[imgpath] = await this._loadPixiAsset(imgpath);
-            } catch (error) {
-                Logger.warn(`Theatre could not load texture ${imgpath}; using a fallback texture.`, false, error);
-                const fallbackTexture = await this._loadFallbackTexture();
-                resources[resname] = resources[imgpath] = fallbackTexture;
-            }
-        }));
+        await Promise.all(
+            imgSrcs.map(async ({ resname, imgpath }) => {
+                resources[resname] = resources[imgpath] = await PIXI.Assets.load(imgpath);
+            }),
+        );
         Logger.debug("resources", resources);
         return resources;
     }
@@ -3544,7 +3528,7 @@ export class Theatre {
         let navItem = this.getNavItemById(imgId);
         if (navItem) KHelpers.addClass(navItem, "theatre-control-nav-bar-item-active");
 
-        let dock = await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, true);
+        await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, true);
         let textBox = document.createElement("div");
         // textBox class + style depends on our display mode
         switch (this.settings.theatreStyle) {
@@ -3606,7 +3590,7 @@ export class Theatre {
         let navItem = this.getNavItemById(imgId);
         if (navItem) KHelpers.addClass(navItem, "theatre-control-nav-bar-item-active");
 
-        let dock = await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, false);
+        await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, false);
         let textBox = document.createElement("div");
         // textBox class + style depends on our display mode
         switch (this.settings.theatreStyle) {
@@ -4625,14 +4609,7 @@ export class Theatre {
         let tweenParams = Theatre.verifyAnimationSyntax(animSyntax);
 
         let resTarget = resMap.find((e) => e.name == tweenParams[0].resName);
-        if (!resTarget?.path) {
-            Logger.warn("Theatre could not find rigging resource %s", false, tweenParams[0].resName);
-            return;
-        }
-        let texture = await this._loadPixiAsset(resTarget.path).catch((error) => {
-            Logger.warn("Theatre could not load rigging texture %s", false, resTarget.path, error);
-            return null;
-        });
+        let texture = await PIXI.Assets.load(resTarget.path);
 
         Logger.debug(
             "Adding tweens for animation '%s' from syntax: %s with params: ",
@@ -4642,10 +4619,10 @@ export class Theatre {
         );
         // Logger.debug("Resource path is %s, resource: ", resTarget.path, resource);
         if (!texture) {
-            Logger.warn(
-                'Theatre could not display rigging resource "%s" from "%s".',
+            Logger.error(
+                'ERROR: resource name : "%s" with path "%s" does not exist!',
                 false,
-                tweenParams[0].resName,
+                tweenParams[idx].resName,
                 resTarget.path,
             );
             return;
@@ -4829,10 +4806,6 @@ export class Theatre {
             let cimg = this.getTheatreCoverPortrait();
             if (this.speakingAs != id) {
                 this.speakingAs = id;
-                const selectedActor = game.actors.get(actorId);
-                if (selectedActor && game.user.character?.id !== actorId) {
-                    game.user.update({character: actorId});
-                }
                 KHelpers.addClass(navItem, "theatre-control-nav-bar-item-speakingas");
                 TweenMax.to(Theatre.instance.theatreNavBar, 0.4, {
                     scrollTo: { x: navItem.offsetLeft, offsetX: Theatre.instance.theatreNavBar.offsetWidth / 2 },
@@ -4859,16 +4832,13 @@ export class Theatre {
                 cimg.setAttribute("src", params.src);
                 cimg.style.opacity = "0.3";
                 // push focus to chat-message
-                let chatMessage = document.getElementById("chat-message") ?? document.querySelector("[name='chat-message'], textarea.chat-input, prose-mirror");
-                chatMessage?.focus?.();
+                let chatMessage = document.getElementById("chat-message");
+                chatMessage.focus();
                 // send typing event
                 //this._sendTypingEvent();
                 //this.setUserTyping(game.user.id,this.speakingAs);
             } else {
                 this.speakingAs = null;
-                if (game.user.character?.id === actorId) {
-                    game.user.update({character: null});
-                }
                 // clear cover
                 cimg.removeAttribute("src");
                 cimg.style.opacity = "0";
@@ -4901,10 +4871,6 @@ export class Theatre {
                 await this.injectRightPortrait(src, name, id, optAlign, emotions);
             }
             this.speakingAs = id;
-            const selectedActor = game.actors.get(actorId);
-            if (selectedActor && game.user.character?.id !== actorId) {
-                game.user.update({character: actorId});
-            }
             KHelpers.addClass(navItem, "theatre-control-nav-bar-item-speakingas");
             TweenMax.to(Theatre.instance.theatreNavBar, 0.4, {
                 scrollTo: { x: navItem.offsetLeft, offsetX: Theatre.instance.theatreNavBar.offsetWidth / 2 },
@@ -4938,8 +4904,8 @@ export class Theatre {
             cimg.setAttribute("src", src);
             cimg.style.opacity = "0.3";
             // push focus to chat-message
-            let chatMessage = document.getElementById("chat-message") ?? document.querySelector("[name='chat-message'], textarea.chat-input, prose-mirror");
-            chatMessage?.focus?.();
+            let chatMessage = document.getElementById("chat-message");
+            chatMessage.focus();
         }
         // send typing event
         this._sendTypingEvent();
@@ -5094,92 +5060,6 @@ export class Theatre {
         elem.style["font-weight"] = this.fontWeight;
     }
 
-    _focusChatMessage() {
-        const chatMessage =
-            document.getElementById("chat-message") ??
-            document.querySelector("[name='chat-message'], textarea.chat-input, prose-mirror");
-        chatMessage?.focus?.();
-    }
-
-    _getEmoteControlButton() {
-        return this.theatreControls?.getElementsByClassName("theatre-icon-emote")?.[0]?.parentNode ?? null;
-    }
-
-    _positionEmoteMenu() {
-        if (!this.theatreEmoteMenu || !this.theatreControls) return;
-        const menuHeight = this.theatreEmoteMenu.offsetHeight || 400;
-        const top = Math.max(8, this.theatreControls.offsetTop - menuHeight - 10);
-        this.theatreEmoteMenu.style.top = `${top}px`;
-    }
-
-    showEmoteMenu({ rerender = true } = {}) {
-        if (!this.theatreEmoteMenu) return;
-        if (rerender) this.renderEmoteMenu();
-        this.theatreEmoteMenu.style.display = "flex";
-        this._positionEmoteMenu();
-        const emoteButton = this._getEmoteControlButton();
-        if (emoteButton) KHelpers.addClass(emoteButton, "theatre-control-btn-down");
-    }
-
-    hideEmoteMenu() {
-        if (!this.theatreEmoteMenu) return;
-        this.theatreEmoteMenu.style.display = "none";
-        const emoteButton = this._getEmoteControlButton();
-        if (emoteButton) KHelpers.removeClass(emoteButton, "theatre-control-btn-down");
-    }
-
-    _getAssetLoadCandidates(src) {
-        const candidates = [];
-        const source = typeof src === "string" ? src : "";
-        const add = (candidate) => {
-            if (typeof candidate !== "string") return;
-            const normalized = candidate.trim();
-            if (!normalized || candidates.includes(normalized)) return;
-            candidates.push(normalized);
-        };
-
-        add(source);
-        const unrooted = source.startsWith("/") ? source.slice(1) : source;
-        if (unrooted) add(unrooted);
-        if (unrooted) add(`/${unrooted}`);
-
-        const routePrefix = globalThis.ROUTE_PREFIX;
-        if (routePrefix && unrooted) {
-            add(`${String(routePrefix).replace(/\/$/, "")}/${unrooted.replace(/^\//, "")}`);
-        }
-
-        try {
-            const getRoute = globalThis.foundry?.utils?.getRoute;
-            add(getRoute?.(unrooted || source));
-        } catch (error) {
-            Logger.debug("Could not create routed asset path for %s", src, error);
-        }
-
-        return candidates;
-    }
-
-    async _loadPixiAsset(src) {
-        let lastError = null;
-        for (const candidate of this._getAssetLoadCandidates(src)) {
-            try {
-                const texture = await PIXI.Assets.load(candidate);
-                if (texture) return texture;
-            } catch (error) {
-                lastError = error;
-            }
-        }
-        throw lastError ?? new Error(`Could not load PIXI asset ${src}`);
-    }
-
-    async _loadFallbackTexture() {
-        try {
-            return await this._loadPixiAsset(CONSTANTS.DEFAULT_PORTRAIT);
-        } catch (error) {
-            Logger.warn("Theatre could not load the default portrait; using a blank texture.", false, error);
-            return PIXI.Texture.WHITE;
-        }
-    }
-
     /**
      * Toggle the narrator bar
      *
@@ -5270,7 +5150,8 @@ export class Theatre {
                 Theatre.instance.speakingAs = CONSTANTS.NARRATOR;
                 Theatre.instance.setUserTyping(game.user.id, CONSTANTS.NARRATOR);
                 // push focus to chat-message
-                Theatre.instance._focusChatMessage();
+                let chatMessage = document.getElementById("chat-message");
+                chatMessage.focus();
                 // send event to triggier the narrator bar
                 if (!remote) Theatre.instance._sendSceneEvent("narrator", { active: true });
                 // re-render the emote menu (expensive)
@@ -5333,14 +5214,9 @@ export class Theatre {
         let fonts = Theatre.FONTS;
         let textFlyin = Theatre.FLYIN_ANIMS;
         let textStanding = Theatre.STANDING_ANIMS;
-        const renderTheatreTemplate =
-            foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
-        if (!renderTheatreTemplate) {
-            Logger.error("Theatre could not find a Foundry template renderer for the emote menu.", true);
-            return;
-        }
-
-        renderTheatreTemplate("modules/whiston-FVTT-private-module/templates/emote_menu.html", {
+        let sideBar = document.getElementById("sidebar");
+        foundry.applications.handlebars
+            .renderTemplate("modules/whiston-FVTT-private-module/templates/emote_menu.html", {
                 emotes,
                 textFlyin,
                 textStanding,
@@ -5348,8 +5224,8 @@ export class Theatre {
             })
             .then((template) => {
                 Logger.debug("emote window template rendered");
+                Theatre.instance.theatreEmoteMenu.style.top = `${Theatre.instance.theatreControls.offsetTop - 410}px`;
                 Theatre.instance.theatreEmoteMenu.innerHTML = template;
-                Theatre.instance._positionEmoteMenu();
 
                 let wheelFunc = function (ev) {
                     //Logger.debug("wheel on text-box",ev.currentTarget.scrollTop,ev.deltaY,ev.deltaMode);
@@ -5535,7 +5411,8 @@ export class Theatre {
                                 //}
                             }
                             // push focus to chat-message
-                            Theatre.instance._focusChatMessage();
+                            let chatMessage = document.getElementById("chat-message");
+                            chatMessage.focus();
                         }
                     });
                     // check if this child is our configured 'text style'
@@ -5623,7 +5500,8 @@ export class Theatre {
                                 //}
                             }
                             // push focus to chat-message
-                            Theatre.instance._focusChatMessage();
+                            let chatMessage = document.getElementById("chat-message");
+                            chatMessage.focus();
                         }
                     });
                     // check if this child is our configured 'text style'
@@ -5695,7 +5573,8 @@ export class Theatre {
                                     );
                                 }
                                 // push focus to chat-message
-                                Theatre.instance._focusChatMessage();
+                                let chatMessage = document.getElementById("chat-message");
+                                chatMessage.focus();
                             }
                         });
                         // bind mouseenter Listener
@@ -5729,13 +5608,10 @@ export class Theatre {
                         }
                     }
                     // bind mouseleave Listener
-                    emoteBtns[0]?.parentNode?.addEventListener("mouseleave", (ev) => {
+                    emoteBtns[0].parentNode.addEventListener("mouseleave", (ev) => {
                         Theatre.instance.theatreToolTip.style.opacity = 0;
                     });
                 }
-            })
-            .catch((error) => {
-                Logger.error("Theatre failed to render the emote menu.", true, error);
             });
     }
 
@@ -5753,10 +5629,11 @@ export class Theatre {
      * @param ev (Event) : Event that triggered this handler
      */
     handleWindowResize(ev) {
-        TheatreHelpers.resizeBars(ui.sidebar?._collapsed ?? false);
+        TheatreHelpers.resizeBars(ui.sidebar._collapsed);
 
         // emote menu
-        Theatre.instance._positionEmoteMenu();
+        if (Theatre.instance.theatreEmoteMenu)
+            Theatre.instance.theatreEmoteMenu.style.top = `${Theatre.instance.theatreControls.offsetTop - 410}px`;
         /*
 		Theatre.instance.theatreToolTip.style.top = `${Theatre.instance.theatreControls.offsetTop-Theatre.instance.theatreToolTip.offsetHeight}px`
 		Theatre.instance.theatreToolTip.style.left = `${sideBar.offsetLeft - Theatre.instance.theatreToolTip.offsetWidth}px`
@@ -5800,9 +5677,12 @@ export class Theatre {
         Logger.debug("emote click");
 
         if (KHelpers.hasClass(ev.currentTarget, "theatre-control-btn-down")) {
-            Theatre.instance.hideEmoteMenu();
+            Theatre.instance.theatreEmoteMenu.style.display = "none";
+            KHelpers.removeClass(ev.currentTarget, "theatre-control-btn-down");
         } else {
-            Theatre.instance.showEmoteMenu();
+            Theatre.instance.renderEmoteMenu();
+            Theatre.instance.theatreEmoteMenu.style.display = "flex";
+            KHelpers.addClass(ev.currentTarget, "theatre-control-btn-down");
         }
     }
 
@@ -5941,7 +5821,8 @@ export class Theatre {
             Theatre.instance.isDelayEmote = true;
         }
         // push focus to chat-message
-        Theatre.instance._focusChatMessage();
+        let chatMessage = document.getElementById("chat-message");
+        chatMessage.focus();
     }
 
     /**
@@ -5962,7 +5843,8 @@ export class Theatre {
             Theatre.instance.isQuoteAuto = true;
         }
         // push focus to chat-message
-        Theatre.instance._focusChatMessage();
+        let chatMessage = document.getElementById("chat-message");
+        chatMessage.focus();
     }
 
     /**
@@ -6126,7 +6008,8 @@ export class Theatre {
         window.removeEventListener("mouseup", Theatre.instance.handleWindowMouseUp);
         Theatre.instance.dragPoint = null;
         // push focus to chat-message
-        Theatre.instance._focusChatMessage();
+        let chatMessage = document.getElementById("chat-message");
+        chatMessage.focus();
     }
 
     /**
@@ -6209,13 +6092,14 @@ export class Theatre {
     handleTextBoxMouseUp(ev) {
         Logger.debug("MOUSE UP ", ev.buttons, ev.button);
         let id = ev.currentTarget.getAttribute("imgId");
+        let chatMessage = document.getElementById("chat-message");
         if (ev.button == 0) {
             if (ev.ctrlKey) {
                 Theatre.instance.decayTextBoxById(id);
                 ev.stopPropagation();
             } else if (ev.shiftKey) {
                 Theatre.instance.pushInsertById(id, true);
-                Theatre.instance._focusChatMessage();
+                chatMessage.focus();
                 ev.stopPropagation();
             } else if (ev.altKey) {
                 // activate navitem
@@ -6233,7 +6117,7 @@ export class Theatre {
                 } else {
                     Theatre.instance.pushInsertById(id, false);
                 }
-                Theatre.instance._focusChatMessage();
+                chatMessage.focus();
                 ev.stopPropagation();
             } else if (ev.altKey) {
                 let actor = game.actors.get(id.replace(CONSTANTS.PREFIX_ACTOR_ID, ""));
@@ -6247,7 +6131,7 @@ export class Theatre {
                     Theatre.instance.mirrorInsertById(id);
                 }
                 ev.stopPropagation();
-                Theatre.instance._focusChatMessage();
+                chatMessage.focus();
                 Theatre.instance.swapTarget = null;
             }
         }

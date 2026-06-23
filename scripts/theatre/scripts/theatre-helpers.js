@@ -1888,7 +1888,7 @@ export class TheatreHelpers {
                     let cspan = document.createElement("span");
                     cspan.textContent = c;
                     cspan.style.height = `${fontSize}px`;
-                    cspan.style.width = `${fontSize * 0.4}px`;
+                    cspan.style.width = `${fontSize / 4}px`;
                     cspan.style.position = "relative";
                     textBox.appendChild(cspan);
                     charSpans.push(cspan);
@@ -1918,7 +1918,7 @@ export class TheatreHelpers {
                     let cspan = document.createElement("span");
                     cspan.textContent = c;
                     cspan.style.height = `${fontSize}px`;
-                    cspan.style.width = `${fontSize * 0.4}px`;
+                    cspan.style.width = `${fontSize / 4}px`;
                     // not part of an extended white space, append word, start new one
                     if (prevChar != " " && prevChar != "\n") {
                         textBox.appendChild(word);
@@ -2066,7 +2066,7 @@ export class TheatreHelpers {
                     let cspan = document.createElement("span");
                     cspan.textContent = c;
                     cspan.style.height = `${fontSize}px`;
-                    cspan.style.width = `${fontSize * 0.4}px`;
+                    cspan.style.width = `${fontSize / 4}px`;
                     cspan.style.position = "relative";
                     textBox.appendChild(cspan);
                     charSpans.push(cspan);
@@ -2140,7 +2140,7 @@ export class TheatreHelpers {
                     let cspan = document.createElement("span");
                     cspan.textContent = c;
                     cspan.style.height = `${fontSize}px`;
-                    cspan.style.width = `${fontSize * 0.4}px`;
+                    cspan.style.width = `${fontSize / 4}px`;
                     cspan.style.position = "relative";
                     if (word) word.appendChild(cspan);
                     else textBox.appendChild(cspan);
@@ -2954,7 +2954,7 @@ export class TheatreHelpers {
             return;
         }
         const chatMessage = document.getElementById("chat-message");
-        const isChatOutsideChatLog = chatMessage?.parentElement?.id === "chat-notifications";
+        const isChatOutsideChatLog = chatMessage.parentElement.id === "chat-notifications";
 
         // Give time to sidebar to finish collapsing
         window.setTimeout(() => {
@@ -2974,7 +2974,7 @@ export class TheatreHelpers {
                 secondBar.style.width = `${dualWidth}px`;
                 secondBar.style.left = `calc(100% - ${dualWidth}px)`;
             }
-            Theatre.instance._positionEmoteMenu?.();
+            Theatre.instance.theatreEmoteMenu.style.top = `${Theatre.instance.theatreControls.offsetTop - 410}px`;
             if (Theatre.instance.reorderTOId) {
                 window.clearTimeout(Theatre.instance.reorderTOId);
             }
