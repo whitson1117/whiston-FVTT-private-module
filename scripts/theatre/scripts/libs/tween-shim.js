@@ -51,6 +51,8 @@
         return target[key];
     };
 
+    const transformKeys = new Set(["scale", "scaleX", "scaleY", "rotation", "rotate", "x", "y"]);
+
     const appendTransform = (target, transform) => {
         target.style.transform = `${target.style.transform || ""} ${transform}`.trim();
     };
@@ -73,7 +75,7 @@
 
     const getDomValue = (target, key) => {
         if (!target?.style) return target[key];
-        if (["scale", "scaleX", "scaleY", "rotation", "rotate", "x", "y"].includes(key)) return target.style.transform;
+        if (transformKeys.has(key)) return target.style.transform;
         if (key === "autoAlpha") return target.style.opacity;
         if (key in target.style) return target.style[key];
         return target[key];
@@ -137,6 +139,10 @@
         }
         for (const [key, value] of Object.entries(captured ?? {})) {
             if (key === "pixi") continue;
+            if (isElement(target) && transformKeys.has(key)) {
+                target.style.transform = value ?? "";
+                continue;
+            }
             setValue(target, key, value);
         }
     };

@@ -61,6 +61,7 @@ export default class TheatreBridge {
         if (this.isActorStaged(actorId)) {
             if (this.api?.removeFromNavBar) this.api.removeFromNavBar(actor);
             else this.theatreClass?.removeFromNavBar?.(actor);
+            if (this.instance?.speakingAs === this.getTheatreId(actorId)) this.instance.hideEmoteMenu?.();
             return false;
         }
 
@@ -93,7 +94,8 @@ export default class TheatreBridge {
             await this.instance.activateInsertById(theatreId);
         }
         this.instance.setUserTyping(game.user.id, theatreId);
-        this.instance.renderEmoteMenu?.();
+        if (this.instance.showEmoteMenu) this.instance.showEmoteMenu();
+        else this.instance.renderEmoteMenu?.();
         if (!this.instance.rendering) this.instance._renderTheatre?.(performance.now());
     }
 
@@ -105,5 +107,6 @@ export default class TheatreBridge {
             await this.instance.activateInsertById(theatreId);
         }
         this.instance.removeUserTyping(game.user.id);
+        this.instance.hideEmoteMenu?.();
     }
 }

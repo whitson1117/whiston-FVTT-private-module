@@ -1095,6 +1095,8 @@
   border-left: 4px double #333;
   transition: opacity 1s ease-in-out;
   flex-wrap: wrap;
+  line-height: 1.25;
+  row-gap: 0.08em;
 }
 
 .theatre-text-box-light {
@@ -1111,6 +1113,8 @@
   border-right: 1px dashed rgba(255, 255, 255, 0.1);
   transition: opacity 1s ease-in-out;
   flex-wrap: wrap;
+  line-height: 1.25;
+  row-gap: 0.08em;
 }
 
 .theatre-text-box-clear {
@@ -1126,6 +1130,8 @@
   font-family: "Signika", "Palatino Linotype", serif;
   transition: opacity 1s ease-in-out, box-shadow 0.5s ease-in-out;
   flex-wrap: wrap;
+  line-height: 1.25;
+  row-gap: 0.08em;
 }
 
 .theatre-text-box-clear:hover {
@@ -1138,6 +1144,17 @@
 .theatre-text-box div {
   display: flex;
   align-content: flex-start;
+  align-items: flex-start;
+  column-gap: 0.02em;
+  line-height: 1.25;
+  min-height: 1.25em;
+}
+
+.theatre-narrator-content span,
+.theatre-text-box-light span,
+.theatre-text-box-clear span,
+.theatre-text-box span {
+  line-height: 1.25;
 }
 
 .theatre-narrator-content hr,
@@ -1373,11 +1390,15 @@
 
 .theatre-emote-menu {
   display: none;
+  position: absolute;
+  z-index: 80;
+  flex-direction: column;
   top: 0px;
   width: 300px;
   height: 400px;
   max-height: unset;
   margin-bottom: 5px;
+  pointer-events: all;
 }
 
 .theatre-emote-menu .emote-box {
