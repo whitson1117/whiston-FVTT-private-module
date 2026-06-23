@@ -16,6 +16,10 @@ export default class TheatreBridge {
         return game.modules.get(MODULE_ID)?.api ?? null;
     }
 
+    static wait(ms = 0) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     static getTheatreId(actorId) {
         return `${THEATRE_PREFIX}${actorId}`;
     }
@@ -62,6 +66,7 @@ export default class TheatreBridge {
 
         if (this.api?.addToNavBar) this.api.addToNavBar(actor);
         else this.theatreClass?.addToNavBar?.(actor);
+        await this.wait(50);
         await this.activateActor(actorId);
         return true;
     }
@@ -88,6 +93,8 @@ export default class TheatreBridge {
             await this.instance.activateInsertById(theatreId);
         }
         this.instance.setUserTyping(game.user.id, theatreId);
+        this.instance.renderEmoteMenu?.();
+        if (!this.instance.rendering) this.instance._renderTheatre?.(performance.now());
     }
 
     static async clearSpeaking() {

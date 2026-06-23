@@ -3064,11 +3064,21 @@ export class Theatre {
         Logger.debug("adding sprite to dockContainer");
 
         const resources = {};
-        await Promise.all(
-            imgSrcs.map(async ({ resname, imgpath }) => {
+        const uniqueSources = new Map();
+        for (const {resname, imgpath} of imgSrcs) uniqueSources.set(`${resname}:${imgpath}`, {resname, imgpath});
+
+        await Promise.all(Array.from(uniqueSources.values()).map(async ({ resname, imgpath }) => {
+            try {
                 resources[resname] = resources[imgpath] = await PIXI.Assets.load(imgpath);
-            }),
-        );
+            } catch (error) {
+                Logger.warn(`Theatre could not load texture ${imgpath}; using the default portrait instead.`, false, error);
+                try {
+                    resources[resname] = resources[imgpath] = await PIXI.Assets.load(CONSTANTS.DEFAULT_PORTRAIT);
+                } catch (fallbackError) {
+                    Logger.error(`Theatre could not load fallback texture for ${imgpath}.`, true, fallbackError);
+                }
+            }
+        }));
         Logger.debug("resources", resources);
         return resources;
     }
@@ -3527,7 +3537,7 @@ export class Theatre {
         let navItem = this.getNavItemById(imgId);
         if (navItem) KHelpers.addClass(navItem, "theatre-control-nav-bar-item-active");
 
-        let dock = this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, true);
+        let dock = await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, true);
         let textBox = document.createElement("div");
         // textBox class + style depends on our display mode
         switch (this.settings.theatreStyle) {
@@ -3589,7 +3599,7 @@ export class Theatre {
         let navItem = this.getNavItemById(imgId);
         if (navItem) KHelpers.addClass(navItem, "theatre-control-nav-bar-item-active");
 
-        let dock = this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, false);
+        let dock = await this._createPortraitPIXIContainer(imgPath, portName, imgId, optAlign, emotions, false);
         let textBox = document.createElement("div");
         // textBox class + style depends on our display mode
         switch (this.settings.theatreStyle) {
@@ -4835,8 +4845,8 @@ export class Theatre {
                 cimg.setAttribute("src", params.src);
                 cimg.style.opacity = "0.3";
                 // push focus to chat-message
-                let chatMessage = document.getElementById("chat-message");
-                chatMessage.focus();
+                let chatMessage = document.getElementById("chat-message") ?? document.querySelector("[name='chat-message'], textarea.chat-input, prose-mirror");
+                chatMessage?.focus?.();
                 // send typing event
                 //this._sendTypingEvent();
                 //this.setUserTyping(game.user.id,this.speakingAs);
@@ -4914,8 +4924,8 @@ export class Theatre {
             cimg.setAttribute("src", src);
             cimg.style.opacity = "0.3";
             // push focus to chat-message
-            let chatMessage = document.getElementById("chat-message");
-            chatMessage.focus();
+            let chatMessage = document.getElementById("chat-message") ?? document.querySelector("[name='chat-message'], textarea.chat-input, prose-mirror");
+            chatMessage?.focus?.();
         }
         // send typing event
         this._sendTypingEvent();
@@ -5224,9 +5234,14 @@ export class Theatre {
         let fonts = Theatre.FONTS;
         let textFlyin = Theatre.FLYIN_ANIMS;
         let textStanding = Theatre.STANDING_ANIMS;
-        let sideBar = document.getElementById("sidebar");
-        foundry.applications.handlebars
-            .renderTemplate("modules/whiston-FVTT-private-module/templates/emote_menu.html", {
+        const renderTheatreTemplate =
+            foundry.applications?.handlebars?.renderTemplate ?? globalThis.renderTemplate;
+        if (!renderTheatreTemplate) {
+            Logger.error("Theatre could not find a Foundry template renderer for the emote menu.", true);
+            return;
+        }
+
+        renderTheatreTemplate("modules/whiston-FVTT-private-module/templates/emote_menu.html", {
                 emotes,
                 textFlyin,
                 textStanding,
@@ -5618,10 +5633,13 @@ export class Theatre {
                         }
                     }
                     // bind mouseleave Listener
-                    emoteBtns[0].parentNode.addEventListener("mouseleave", (ev) => {
+                    emoteBtns[0]?.parentNode?.addEventListener("mouseleave", (ev) => {
                         Theatre.instance.theatreToolTip.style.opacity = 0;
                     });
                 }
+            })
+            .catch((error) => {
+                Logger.error("Theatre failed to render the emote menu.", true, error);
             });
     }
 
