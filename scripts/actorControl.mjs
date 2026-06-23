@@ -1,9 +1,11 @@
 import Setting from "./setting.mjs";
 import InterfaceToggle from "./interfaceToggle.mjs";
 import {ASSETS_PATH} from "./constants.mjs";
+import TheatreBridge from "./theatreBridge.mjs";
 
 export default class ActorControl {
     static initialize() {
+        document.querySelector("#actor-control-container")?.remove();
         const favoriteBar = this._createFavoriteBar();
         const selector = this._createSelector();
         const actorControl = document.createElement("div");
@@ -68,7 +70,9 @@ export default class ActorControl {
         reset.id = "actor-reset"
         reset.className = "actor-icon";
         if (game.user.character === null) reset.classList.add("active");
+        else if (TheatreBridge.isActorStaged(game.user.character.id)) reset.classList.add("staged");
         reset.onclick = () => this._reset();
+        reset.oncontextmenu = (e) => TheatreBridge.toggleCurrentActorStage(e).then(() => this._refresh());
         reset.dataset.tooltip = game.i18n.localize("MRKB.ActorClear");
         reset.append(img);
 
@@ -81,12 +85,13 @@ export default class ActorControl {
         favorites.id = "favorites";
         favorites.onwheel = (e) => colScroll(e, favorites);
         const favor = this._extractFavorites();
-        favorites.append(reset, ...favor.map((e) => this._getToken(e)));
+        favorites.append(reset, ...favor.map((e) => this._getToken(e, "favorite")));
 
         return favorites;
     }
     static _setSelector() {
         const body = document.querySelector("#actor-selector-body");
+        if (!body) return;
         const scrollTop = Number(body?.scrollTop ?? 0);
         const data = this._createSelectorBody();
         const children = Array.from(data.children);
@@ -101,6 +106,7 @@ export default class ActorControl {
     static _setFavorite() {
         const favor = this._createFavoritesHTML();
         const favorite = document.querySelector("#favorites");
+        if (!favorite) return;
         favorite.replaceChildren(...favor.children);
     }
     static _collectCharacters() {
@@ -147,7 +153,7 @@ export default class ActorControl {
         const body = document.createElement("div");
         body.className = "actor-grid";
 
-        e.content.forEach((i) => body.appendChild(this._getToken(i)));
+        e.content.forEach((i) => body.appendChild(this._getToken(i, "selector")));
         
         const div = document.createElement("div");
         div.className = "actor-folder tab";
@@ -159,13 +165,15 @@ export default class ActorControl {
 
         return div;
     }
-    static _getToken(i) {
+    static _getToken(i, source = "selector") {
         const favoriteList = this._extractFavorites();
         const isFavorite = !(favoriteList.find(e => e.id === i.id) === undefined);
+        const isFavoriteBar = source === "favorite";
 
         let a = document.createElement("a");
         a.className = "actor-icon";
         if (i.id === game.user.character?.id) a.classList.add("active");
+        if (TheatreBridge.isActorStaged(i.id)) a.classList.add("staged");
         a.onclick = (e) => {
             if (e.ctrlKey) {
                 game.actors.get(i.id).sheet.render(true);
@@ -173,7 +181,15 @@ export default class ActorControl {
                 this._select(i.id);
             }
         };
-        a.oncontextmenu = (e) => this._controlFavorite(i.id);
+        a.oncontextmenu = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isFavoriteBar) {
+                TheatreBridge.toggleActorStage(i.id).then(() => this._refresh());
+            } else {
+                this._controlFavorite(i.id);
+            }
+        };
         a.dataset.tooltip = i.name;
 
         let input = document.createElement("input");
@@ -200,12 +216,14 @@ export default class ActorControl {
         this._setSelector();
         this._setFavorite();
         const reset = document.querySelector("#actor-reset");
+        if (!reset) return;
         if (game.user.character === null) reset.classList.add("active");
         else reset.classList.remove("active");
     }
     static _select(id) {
         game.user.update({ character : id }).then(() => {
             canvas.tokens.releaseAll();
+            TheatreBridge.activateActor(id);
             this._refresh();
         });
     }
@@ -225,6 +243,7 @@ export default class ActorControl {
     static _reset() {
         game.user.update({"character": null}).then(() => {
             canvas.tokens.releaseAll();
+            TheatreBridge.clearSpeaking();
             this._refresh();
         });
     }

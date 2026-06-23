@@ -4,6 +4,7 @@ import ChatEditor from "./chatEditor.mjs";
 import getPortrait from "./getPortrait.mjs";
 import {parse} from "./markdownParser.mjs";
 import ActorControl from "./actorControl.mjs";
+import {MODULE_ID} from "./constants.mjs";
 
 export default class ChatHandler {
     static parseSlashCommand(content) {
@@ -109,11 +110,11 @@ export default class ChatHandler {
         if (chatType === "eas") speaker.alias = "긴급 재난 문자";
 
         const getOrder = () => {
-            const order = lastMessage.getFlag("mrkb-chat-enhancements", "order");
+            const order = lastMessage.getFlag(MODULE_ID, "order");
             if (order) return order + 1;
             else {
                 const arr = [];
-                messages.forEach((e) => arr.push(e.flags["mrkb-chat-enhancements"]?.order));
+                messages.forEach((e) => arr.push(e.flags[MODULE_ID]?.order));
                 const orders = arr.filter((e) => !isNaN(e));
                 return (orders.length === 0) ? 0 : Math.max(...orders) + 2;
             }
@@ -129,16 +130,21 @@ export default class ChatHandler {
         option.parent = isFamily ? lastMessage.id : null;
         option.order = lastMessage ? getOrder() : 0;
 
+        const moduleFlags = {
+            ...(message.flags?.[MODULE_ID] ?? {}),
+            ...option
+        };
+
         message.updateSource({
             style : style,
             speaker : speaker,
             content : con,
-            flags : {"mrkb-chat-enhancements" : option}
+            flags : {[MODULE_ID] : moduleFlags}
         });
     }
     static isFamily(parent, child, speaker, options) {
         if (!parent) return false;
-        const type = parent.getFlag("mrkb-chat-enhancements", "type");
+        const type = parent.getFlag(MODULE_ID, "type");
         return (
             parent &&
             speaker.alias === parent.speaker.alias &&
@@ -212,9 +218,9 @@ export default class ChatHandler {
         ChatHandler.checkChatFlag(message, html);
     }
     static checkChatFlag(message, html) {
-        const order = message.getFlag("mrkb-chat-enhancements", "order");
-        const type = message.getFlag("mrkb-chat-enhancements", "type");
-        const added = message.getFlag("mrkb-chat-enhancements", "added");
+        const order = message.getFlag(MODULE_ID, "order");
+        const type = message.getFlag(MODULE_ID, "type");
+        const added = message.getFlag(MODULE_ID, "added");
         const isAuthor = message.isAuthor;
 
         html.classList.add(type ?? "normal");
@@ -234,10 +240,10 @@ export default class ChatHandler {
         const startIndex = fixEveryMessages ? 0 : Math.max(0, messages.length - 51);
         const msgs = messages.slice(startIndex);
         const getFlag = (msg, flag) => {
-            return msg.getFlag("mrkb-chat-enhancements", flag);
+            return msg.getFlag(MODULE_ID, flag);
         }
         const setFlag = (msg, flag, value) => {
-            return msg.setFlag("mrkb-chat-enhancements", flag, value);
+            return msg.setFlag(MODULE_ID, flag, value);
         }
         const reOrdered = msgs.map((e, i) => {
             const order = getFlag(e, "order");

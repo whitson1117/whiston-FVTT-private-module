@@ -1,4 +1,5 @@
 import Setting from "./setting.mjs";
+import {MODULE_ID} from "./constants.mjs";
 
 export default class TypingAlert {
     static initialize() {
@@ -13,10 +14,10 @@ export default class TypingAlert {
         const chatForm = document.querySelector(".chat-form");
         chatForm.append(container);
 
-        game.socket.on("module.mrkb-chat-enhancements", this.receiveTypingAlert);
+        game.socket.on(`module.${MODULE_ID}`, this.receiveTypingAlert);
     }
     static emitTypingAlert() {
-        game.socket.emit("module.mrkb-chat-enhancements", {
+        game.socket.emit(`module.${MODULE_ID}`, {
             type: "typingAlert",
             userId: game.user.id,
             userName: game.user.name

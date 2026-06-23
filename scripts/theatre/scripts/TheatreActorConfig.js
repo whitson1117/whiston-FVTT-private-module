@@ -1,0 +1,724 @@
+﻿/**
+ * TheatreActorConfig.js
+ *
+ * Copyright (c) 2019 - 2020 Ken L.
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ */
+
+import KHelpers from "./KHelpers.js";
+import { Theatre } from "./Theatre.js";
+import CONSTANTS from "./constants/constants.js";
+import Logger from "./lib/Logger.js";
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/**
+ * ============================================================
+ * Application to configure Actor Theatre-Inserts
+ *
+ *
+ *
+ *
+ *
+ * ============================================================
+ */
+export class TheatreActorConfig extends HandlebarsApplicationMixin(ApplicationV2) {
+    constructor(options = {}) {
+        super(options);
+    }
+
+    static DEFAULT_OPTIONS = {
+        id: "theatre-config",
+        classes: ["whisperBox"],
+        tag: "form",
+        position: { width: 500, height: 360 },
+        window: { resizable: true, minimizable: true },
+        form: {
+            handler: this.#onSubmitForm,
+            closeOnSubmit: true,
+        },
+        actions: {
+            onAddEmoteLine: this._onAddEmoteLine,
+            onCustomIconImage: this._onCustomIconImage,
+        },
+    };
+
+    static PARTS = {
+        tabs: {
+            template: "templates/generic/tab-navigation.hbs",
+        },
+        content: {
+            template: "modules/whiston-FVTT-private-module/templates/theatre_actor_config.html",
+        },
+    };
+
+    static TABS = {
+        primary: {
+            tabs: [
+                { id: "main", icon: "fas fa-user", label: "Theatre.UI.Config.Main" },
+                { id: "emotes", icon: "far fa-laugh", label: "Theatre.Emote.Label" },
+            ],
+            initial: "main",
+        },
+    };
+
+    /**
+     * Add the Entity name into the window title
+     */
+    get title() {
+        return `${this.object.name}: ${game.i18n.localize("Theatre.UI.Config.ConfigureTheatre")}`;
+    }
+
+    get object() {
+        return this.options.document;
+    }
+
+    /**
+     * Construct and return the data object used to render the HTML template for this form application.
+     *
+     * @return (Object) : The Object to be used in handlebars compile
+     */
+    async _prepareContext(options) {
+        const parentContext = await super._prepareContext(options);
+        const entityName = this.object.name;
+        return foundry.utils.mergeObject(parentContext, {
+            entityName: entityName,
+            isGM: game.user.isGM,
+            object: foundry.utils.duplicate(this.object),
+            emote: Theatre.getActorEmotes(this.object._id),
+            optalignChoices: {
+                top: "Theatre.UI.Config.SetTopAlignTop",
+                bottom: "Theatre.UI.Config.SetTopAlignBottom",
+            },
+        });
+    }
+
+    async _onRender(context, options) {
+        await super._onRender(context, options);
+        this.activateListeners();
+    }
+
+    /**
+     * Activate the default set of listeners for the Actor Sheet
+     * These listeners handle basic stuff like updating images
+     */
+    activateListeners() {
+        // Support custom label updates
+        const labelsCustom = this.element.getElementsByClassName("customlabel");
+        for (const label of labelsCustom) this._setupCustomLabelEvents(label);
+    }
+
+    /** @override */
+    _onClickTab(event) {
+        super._onClickTab(event);
+
+        const { tab } = event.target.dataset;
+        this.setPosition({
+            height: tab === "emotes" ? 795 : 360,
+        });
+    }
+
+    /**
+     * Verify the form data just prior to submission
+     *
+     * @param formData (Object) : The object form data to be verified
+     *
+     * @return Object : an object containing the revised formData to be updated
+     *                   as well as a set of data which only contains the updated
+     *                   emotes (excluding other theatre updates)
+     */
+    _verifyCustomEmotes(formData) {
+        // find the formdata elements that contain "custom#" in their chain
+        // once we find these objects, verify that there's a boolean attribute
+        // specifying that it is a customEmote
+        // next we need to verify that the name property is set, if not, we set
+        // it to the prop key.
+        // If any of this is missing in bot the form data AND the object data,
+        // then we add it to the form submission
+        for (let k in formData)
+            if (formData[k] && /emotes\.custom\d+/.test(k)) {
+                let mch = k.match(/flags\.theatre\.emotes\.custom\d+/)[0];
+                let name = mch.match(/custom\d+/)[0];
+                let labelPath = mch + ".label";
+                let cflagPath = mch + ".custom";
+                let namePath = mch + ".name";
+                Logger.debug("found %s", k, mch, cflagPath, namePath);
+                // if label is both the formData as well as the object, reject the submission
+                let emoteProp = foundry.utils.getProperty(this.object, mch);
+                let labelProp = null;
+                if (emoteProp) labelProp = foundry.utils.getProperty(this.object, labelPath);
+
+                if ((!labelProp || labelProp == "") && (!formData[labelPath] || formData[labelPath] == "")) {
+                    Logger.error("ERROR: No label for custom emote defined!", true);
+                    Logger.error(game.i18n.localize("Theatre.UI.Notification.BadCustomEmote"), true);
+                    return false;
+                }
+
+                if (!emoteProp || !foundry.utils.getProperty(this.object, cflagPath)) formData[cflagPath] = true;
+                if (!emoteProp || !foundry.utils.getProperty(this.object, namePath)) formData[namePath] = name;
+            }
+
+        // collect emote form updates + revised form updates
+        let configElement = this.element;
+        let toDelete = configElement.querySelectorAll('.theatre-config-form-group[todelete="true"]');
+        let emoteFormData = {};
+        let revisedFormData = {};
+        for (let k in formData) {
+            let rem = false;
+            let isCustom = /custom\d+/.test(k);
+            let isEmote = /flags\.theatre\.emotes\./.test(k);
+            if (formData[k] && isCustom) {
+                let mch = k.match(/custom\d+/)[0];
+                for (let d of toDelete)
+                    if (d.getAttribute("name") == mch) {
+                        rem = true;
+                        break; // don't add it to our new object
+                    }
+            }
+            if (!rem && isEmote) emoteFormData[k] = formData[k];
+            else if (!rem && !isEmote) revisedFormData[k] = formData[k];
+        }
+        // null out the entries if deleted in emote form, revised simply does not have any updates
+        // to deleted entries
+        for (let elem of toDelete) {
+            let name = elem.getAttribute("name");
+            emoteFormData[`flags.theatre.emotes.${name}`] = null;
+        }
+
+        return { emoteFormData: emoteFormData, revisedFormData: revisedFormData };
+    }
+
+    /**
+     * Given the formdata, check the levels in the given html element that have data-edit
+     * and add their values to the formData update
+     *
+     * @param formData (Object) : An object representing the formData that will be used to update the Entity.
+     *
+     * @return Object : An object represeting the formData, but updated with new entries to be updated.
+     */
+    _processUpdateLabels(formData) {
+        const html = this.element;
+
+        const dataLabels = html.querySelectorAll("label[data-edit]");
+        for (const label of dataLabels) {
+            const target = label.getAttribute("data-edit");
+            formData[target] = label.textContent;
+        }
+        return formData;
+    }
+
+    /**
+     * This defines how to update the subject of the form when the form is submitted
+     *
+     * @param event (Object) : event that triggered this update
+     * @param formData (Object) : An object representing the formData that will be used to update the Entity.
+     *
+     * @private
+     */
+    static async #onSubmitForm(event, form, sentFormData) {
+        event.preventDefault();
+
+        let formData = sentFormData.object;
+        formData["_id"] = this.object._id;
+
+        // if our baseinsert value was updated..
+        Logger.debug(formData);
+        let insertDirty = false;
+        let baseInsert = formData["flags.theatre.baseinsert"];
+        let optAlign = formData["flags.theatre.optalign"];
+        let name = formData["flags.theatre.name"];
+        let newBaseInsert =
+            this.object.flags.theatre.baseinsert || (this.object.img ? this.object.img : CONSTANTS.DEFAULT_PORTRAIT);
+        let newName = this.object.flags.theatre.name || this.object.name;
+        let newAlign = this.object.flags.theatre.optalign || "top";
+
+        // update Navbar of the corresponding ID
+        let theatreId = `theatre-${this.object._id}`;
+        let navItem = Theatre.instance.getNavItemById(theatreId);
+        let cImg = Theatre.instance.getTheatreCoverPortrait();
+
+        if (baseInsert !== this.object.flags.theatre.baseinsert) {
+            Logger.debug("baseinsert changed!");
+            insertDirty = true;
+            newBaseInsert =
+                baseInsert === "" ? (this.object.img ? this.object.img : CONSTANTS.DEFAULT_PORTRAIT) : baseInsert;
+            if (navItem) {
+                navItem.setAttribute("src", newBaseInsert);
+                cImg.setAttribute("src", newBaseInsert);
+            }
+        }
+        if (optAlign !== this.object.flags.theatre.optalign) {
+            Logger.debug("optalign changed!");
+            insertDirty = true;
+            newAlign = optAlign === "" ? "top" : optAlign;
+            if (navItem) navItem.setAttribute("optalign", newAlign);
+        }
+        if (name !== this.object.flags.theatre.name) {
+            Logger.debug("name changed!");
+            insertDirty = true;
+            newName = name === "" ? this.object.name : name;
+            if (navItem) {
+                navItem.setAttribute("name", newName);
+                navItem.setAttribute("title", newName + (newName == this.object.name ? "" : ` (${this.object.name})`));
+            }
+        }
+        // Add label information to update if it has data-edit
+        formData = this._processUpdateLabels(formData);
+        // Verify custom emotes if we have any
+        let resForms = this._verifyCustomEmotes(formData);
+        if (!resForms) {
+            return;
+        }
+        Logger.debug("Form data AFTER verification: ", resForms);
+        let revisedFormData = resForms.revisedFormData;
+        let emoteFormData = resForms.emoteFormData;
+
+        // check all image resources, if they differ the actor's, we need to replace the texture, and then tell all other clients to do so as well!
+        // let inserts = formData.filter((e,k) => {return k.endsWith("insert") || k.endsWith("baseinsert")});
+        let insert = Theatre.instance.getInsertById(theatreId);
+        let container = insert ? insert.dockContainer : null;
+        let app = Theatre.instance.pixiCTX;
+        let insertEmote = Theatre.instance._getEmoteFromInsert(insert);
+        let newSrcImg = null;
+        let imgSrcs = [];
+
+        for (let k in formData) {
+            if (k.endsWith("insert") || k.endsWith("baseinsert")) {
+                let oldValue = foundry.utils.getProperty(this.object, k);
+                // if the old value does not exist, we will continue
+                if (formData[k] !== oldValue) {
+                    let emote = k.match(/emotes\.[a-z0-9\-]+/);
+                    if (emote) emote = emote[0].replace(/emotes\./, "");
+                    let resName = formData[k];
+                    // A special case exists where the baseportrait is removed, and replaced with either
+                    // null or an empty string, we can set this value, but we need to change the re-render
+                    // behavior to take the sheet portrait or 'mystery man' image
+                    if (!resName || resName === "") {
+                        // try to restore baseinsert
+                        const formBaseInsert = formData["flags.theatre.baseinsert"];
+                        if (k.endsWith("insert") && !k.endsWith("baseinsert")) {
+                            if (formBaseInsert && formBaseInsert !== "") {
+                                resName = formBaseInsert;
+                            } else if (
+                                this.object.flags.theatre.baseinsert &&
+                                this.object.flags.theatre.baseinsert != ""
+                            ) {
+                                resName = this.object.flags.theatre.baseinsert;
+                            } else {
+                                resName = this.object.img ? this.object.img : CONSTANTS.DEFAULT_PORTRAIT;
+                            }
+                        } else {
+                            resName = this.object.img ? this.object.img : CONSTANTS.DEFAULT_PORTRAIT;
+                        }
+                    }
+
+                    // ensure resource exists
+                    if (!(await foundry.canvas.srcExists(resName))) {
+                        Logger.error("ERROR: Path %s does not exist!", true, resName);
+                        Logger.error(game.i18n.localize("Theatre.UI.Notification.BadFilepath") + `"${resName}"`, true);
+                        return;
+                    }
+
+                    // to prevent firing off X number of packets on a save submit
+                    imgSrcs.push({ imgpath: resName, resname: resName });
+                    if (insertEmote == emote || !emote) {
+                        newSrcImg = resName;
+                    }
+                }
+            }
+        }
+
+        // check for null'd emotes, push the objects up a level if one exists
+        const newData = foundry.utils.mergeObject(this.object, emoteFormData, { inplace: false });
+        const emMerge = newData.flags.theatre.emotes;
+        const nEmotes = {};
+        for (const emProp in emMerge) {
+            nEmotes[emProp] = emMerge[emProp];
+        }
+
+        // send the emote parent in bulk to get rid of unwanted children
+        revisedFormData["flags.theatre.emotes"] = nEmotes;
+        Logger.debug("Final Push Config update:", revisedFormData);
+
+        this.object.update(revisedFormData).then(() => {
+            // perform texture updates if needed
+            if (imgSrcs.length > 0) {
+                // we know the active emote, thus all we need is the new source image
+                Logger.debug("sending imgSrcs for replaceAllTextures", imgSrcs);
+                Theatre.instance._AddAllTextureResources(
+                    imgSrcs,
+                    theatreId,
+                    insertEmote,
+                    newSrcImg,
+                    (loader, resources) => {
+                        // if our emote is active and we're replacing the emote texture, or base is active, and we're replacing the base texture
+                        Logger.debug("texture additions complete! ", newSrcImg, insertEmote);
+
+                        if (app && container && newSrcImg) {
+                            Logger.debug("RE-RENDERING with NEW texture resource %s ", newSrcImg);
+
+                            let resName = CONSTANTS.DEFAULT_PORTRAIT;
+                            if (
+                                insert.emote &&
+                                this.object.flags.theatre.emotes[insert.emote].insert &&
+                                this.object.flags.theatre.emotes[insert.emote].insert !== ""
+                            ) {
+                                resName = this.object.flags.theatre.emotes[insert.emote].insert;
+                            } else if (
+                                this.object.flags.theatre.baseinsert &&
+                                this.object.flags.theatre.baseinsert !== ""
+                            ) {
+                                resName = this.object.flags.theatre.baseinsert;
+                            } else if (this.object.img && this.object.img !== "") {
+                                resName = this.object.img;
+                            }
+                            // bubble up dataum from the update
+                            insert.optAlign = newAlign;
+                            insert.name = newName;
+                            insert.label.text = newName;
+
+                            Theatre.instance._clearPortraitContainer(theatreId);
+                            Theatre.instance._setupPortraitContainer(theatreId, newAlign, newSrcImg, resources);
+                            // re-attach label + typingBubble
+                            insert.dockContainer.addChild(insert.label);
+                            insert.dockContainer.addChild(insert.typingBubble);
+
+                            Theatre.instance._repositionInsertElements(insert);
+
+                            if (!Theatre.instance.rendering) {
+                                Theatre.instance._renderTheatre(performance.now());
+                            }
+                        }
+                    },
+                    false,
+                );
+
+                // replaceAllTextureResources will have performed the render, and sent the needed
+                // packets
+                // mark it as 'clean' since we're handling the render here
+                insertDirty = false;
+            }
+
+            // if the insert is dirty, clear and setup
+            if (insertDirty && insert) {
+                Logger.debug("Insert is dirty, re-render it!");
+                let resName = CONSTANTS.DEFAULT_PORTRAIT;
+                if (
+                    insert.emote &&
+                    this.object.flags.theatre.emotes[insert.emote].insert &&
+                    this.object.flags.theatre.emotes[insert.emote].insert !== ""
+                ) {
+                    resName = this.object.flags.theatre.emotes[insert.emote].insert;
+                } else if (this.object.flags.theatre.baseinsert && this.object.flags.theatre.baseinsert !== "") {
+                    resName = this.object.flags.theatre.baseinsert;
+                } else if (this.object.img && this.object.img !== "") {
+                    resName = this.object.img;
+                }
+                // bubble up dataum from the update
+                insert.optAlign = newAlign;
+                insert.name = newName;
+                insert.label.text = newName;
+
+                const proxy = new Proxy(
+                    {},
+                    {
+                        get: function (target, name) {
+                            return PIXI.Assets.cache.get(name);
+                        },
+                    },
+                );
+                Theatre.instance._clearPortraitContainer(theatreId);
+                Theatre.instance._setupPortraitContainer(theatreId, newAlign, resName, proxy);
+
+                // re-attach label + typingBubble
+                insert.dockContainer.addChild(insert.label);
+                insert.dockContainer.addChild(insert.typingBubble);
+
+                Theatre.instance._repositionInsertElements(insert);
+
+                if (!Theatre.instance.rendering) {
+                    Theatre.instance._renderTheatre(performance.now());
+                }
+            }
+
+            if (theatreId === Theatre.instance.speakingAs) {
+                return;
+            }
+            Theatre.instance.renderEmoteMenu();
+            if (insertDirty) {
+                Theatre.instance._sendSceneEvent("renderinsert", { insertid: theatreId });
+            }
+        });
+    }
+
+    /**
+     * Adds a new Custom emote, constructing the HTML to be injected
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    static _onAddEmoteLine(ev) {
+        Logger.debug("Add Emote Pressed!");
+
+        // We need to get a custom emote name for storage purposes, this is a running index from
+        // 1-> MAXINT oh which the upper bound we don't account for, to get the correct custom
+        // index to fill, we find all formGroups whose name starts with "custom" then when we
+        // shave off the number, then we sort these numbers
+        const emoteContainer = ev.target.parentNode;
+        const formEmoteElems = emoteContainer.getElementsByClassName("theatre-config-form-group");
+
+        const customElems = [];
+        for (const elem of formEmoteElems) {
+            const eName = elem.getAttribute("name");
+            if (eName && eName.startsWith("custom"))
+                customElems.push({ sortidx: Number(eName.match(/\d+/)[0]), elem: elem });
+        }
+        // we grab max index, we don't care about possible missing indexes from removed custom emotes
+        // so we'll just leave them as gaps
+        customElems.sort((a, b) => {
+            return a.sortidx - b.sortidx;
+        });
+        const customIdx = customElems.length > 0 ? customElems[customElems.length - 1].sortidx + 1 : 1;
+
+        const customObjElems = [];
+        for (const k in this.object.flags.theatre.emotes) {
+            const eName = k;
+            if (this.object.flags.theatre.emotes[k] !== null && eName && eName.startsWith("custom"))
+                customObjElems.push({
+                    sortidx: Number(eName.match(/\d+/)[0]),
+                    elem: this.object.flags.theatre.emotes[k],
+                });
+        }
+        // we grab max index, we don't care about possible missing indexes from removed custom emotes
+        // so we'll just leave them as gaps
+        customObjElems.sort((a, b) => {
+            return a.sortidx - b.sortidx;
+        });
+        const customObjIdx = customObjElems.length > 0 ? customObjElems[customObjElems.length - 1].sortidx + 1 : 1;
+        const customName = `custom${Math.max(customIdx, customObjIdx)}`;
+
+        // inject a new DOM element to the emote list right before our button
+        const formGroup = document.createElement("div");
+        const emoteNameInput = document.createElement("input");
+        const emoteIconHolder = document.createElement("div");
+        const emoteIcon = document.createElement("img");
+        const fileButton = document.createElement("file-picker");
+        const fileIcon = document.createElement("i");
+
+        KHelpers.addClass(formGroup, "theatre-config-form-group");
+        KHelpers.addClass(emoteIconHolder, "theatre-emote-icon");
+        KHelpers.addClass(emoteIconHolder, "file-picker");
+        KHelpers.addClass(emoteIcon, "customicon");
+        KHelpers.addClass(fileButton, "file-picker");
+        KHelpers.addClass(fileIcon, "fas");
+        KHelpers.addClass(fileIcon, "fa-file-import");
+        KHelpers.addClass(fileIcon, "fa-fw");
+
+        formGroup.setAttribute("name", customName);
+
+        emoteNameInput.setAttribute("type", "text");
+        emoteNameInput.setAttribute("name", `flags.theatre.emotes.${customName}.label`);
+        emoteNameInput.setAttribute("data-dtype", "String");
+        emoteNameInput.setAttribute("placeholder", game.i18n.localize("Theatre.UI.Config.CustomEmotePlaceholder"));
+        emoteNameInput.value = game.i18n.localize("Theatre.UI.Config.CustomEmotePlaceholder");
+        emoteNameInput.addEventListener("focusout", this._onCustomLabelInputFocusOut.bind(this));
+
+        fileButton.setAttribute("type", "image");
+        fileButton.setAttribute("name", `flags.theatre.emotes.${customName}.insert`);
+        fileButton.setAttribute("data-dtype", "String");
+        fileButton.setAttribute("placeholder", game.i18n.localize("Theatre.UI.Config.PathPlaceholder"));
+
+        emoteIcon.setAttribute("data-edit", `flags.theatre.emotes.${customName}.image`);
+        emoteIcon.setAttribute("src", CONSTANTS.ICONLIB + "/blank.png");
+        emoteIcon.setAttribute("title", game.i18n.localize("Theatre.UI.Title.ChooseEmoteIcon"));
+        emoteIcon.setAttribute("data-action", "onCustomIconImage");
+
+        // assemble
+        emoteIconHolder.appendChild(emoteIcon);
+        fileButton.appendChild(fileIcon);
+
+        formGroup.appendChild(emoteNameInput);
+        formGroup.appendChild(emoteIconHolder);
+        formGroup.appendChild(fileButton);
+
+        KHelpers.insertBefore(formGroup, ev.target);
+        this.activateListeners();
+
+        // focus
+        emoteNameInput.focus();
+    }
+
+    /**
+     * Handle changing customEmote image by
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    static _onCustomIconImage(ev) {
+        const target = ev.target;
+        new foundry.applications.apps.FilePicker({
+            type: "image",
+            current: target.getAttribute("src"),
+            callback: (path) => {
+                target.src = path;
+            },
+            top: this.position.top + 40,
+            left: this.position.left + 10,
+        }).browse(target.getAttribute("src"));
+    }
+
+    /**
+     * Handle click event for the custom name label to allow it to be editable
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onCustomLabelClick(ev) {
+        // replace the label with an input box
+        ev.stopPropagation();
+        const inputLabel = document.createElement("input");
+        inputLabel.setAttribute("type", "text");
+        inputLabel.setAttribute(
+            "name",
+            `flags.theatre.emotes.${ev.currentTarget.parentNode.getAttribute("name")}.label`,
+        );
+        inputLabel.setAttribute("data-dtype", "String");
+        inputLabel.setAttribute("placeholder", game.i18n.localize("Theatre.UI.Config.CustomEmotePlaceholder"));
+        inputLabel.setAttribute("value", ev.currentTarget.textContent);
+        inputLabel.addEventListener("focusout", this._onCustomLabelInputFocusOut.bind(this));
+        KHelpers.insertBefore(inputLabel, ev.currentTarget);
+        inputLabel.select();
+        inputLabel.focus();
+        // replace
+        ev.currentTarget.parentNode.removeChild(ev.currentTarget);
+    }
+
+    /**
+     * Handle mouse enter event for custom emote label to show the tool dock
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onCustomLabelMouseEnter(ev) {
+        // show dock
+        const dock = ev.currentTarget.getElementsByClassName("theatre-config-emote-label-dock")[0];
+        dock.style.display = "flex";
+    }
+
+    /**
+     * Handle mouse enter event for custom emote label to show the tool dock
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onCustomLabelMouseLeave(ev) {
+        // hide dock
+        const dock = ev.currentTarget.getElementsByClassName("theatre-config-emote-label-dock")[0];
+        dock.style.display = "none";
+    }
+
+    /**
+     * Handle updating the custom label/input on focus loss
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onCustomLabelInputFocusOut(ev) {
+        // re-build dock + label
+        const label = document.createElement("label");
+        const dock = document.createElement("div");
+        const deleteIcon = document.createElement("i");
+        KHelpers.addClass(label, "theatre-config-emote-label");
+        KHelpers.addClass(label, "customlabel");
+        KHelpers.addClass(dock, "theatre-config-emote-label-dock");
+        KHelpers.addClass(deleteIcon, "fas");
+        KHelpers.addClass(deleteIcon, "fa-trash");
+
+        label.textContent = ev.currentTarget.value;
+
+        label.setAttribute("title", game.i18n.localize("Theatre.UI.Title.ChooseEmoteName"));
+        label.setAttribute(
+            "data-edit",
+            `flags.theatre.emotes.${ev.currentTarget.parentNode.getAttribute("name")}.label`,
+        );
+        dock.setAttribute("title", game.i18n.localize("Theatre.UI.Title.DeleteCustomEmote"));
+
+        dock.appendChild(deleteIcon);
+        label.appendChild(dock);
+        KHelpers.insertBefore(label, ev.currentTarget);
+        this._setupCustomLabelEvents(label);
+        // replace
+        ev.currentTarget.parentNode.removeChild(ev.currentTarget);
+    }
+
+    /**
+     * Handle updating the custom label/input on click
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onCustomLabelDockClick(ev) {
+        // delete custom emote
+        // mark the form group as 'to be deleted' as a rider on our update call
+        const formGroup = KHelpers.seekParentClass(ev.currentTarget, "theatre-config-form-group", 5);
+        if (!formGroup) return;
+        formGroup.setAttribute("todelete", true);
+        formGroup.style.left = "20px";
+        formGroup.style.transform = "scale(0.75)";
+        formGroup.style.opacity = "0.25";
+        ev.stopPropagation();
+        formGroup.addEventListener("click", this._onUndoDockDelete.bind(this));
+    }
+
+    /**
+     * Undo a custom emote item delete
+     *
+     * @param ev (Event) triggered event
+     *
+     * @private
+     */
+    _onUndoDockDelete(ev) {
+        Logger.debug("undo delete!");
+        ev.stopPropagation();
+        ev.currentTarget.removeAttribute("todelete");
+        ev.currentTarget.style.left = "0";
+        ev.currentTarget.style.transform = "scale(1)";
+        ev.currentTarget.style.opacity = "1";
+    }
+
+    /**
+     * Setup the custom name label with several events
+     *
+     * @param label (HTMLElement) : Label HTML element to setup
+     *
+     * @private
+     */
+    _setupCustomLabelEvents(label) {
+        label.addEventListener("click", this._onCustomLabelClick.bind(this));
+        label.addEventListener("mouseenter", this._onCustomLabelMouseEnter.bind(this));
+        label.addEventListener("mouseleave", this._onCustomLabelMouseLeave.bind(this));
+        const dock = label.getElementsByClassName("theatre-config-emote-label-dock")[0];
+        dock.addEventListener("click", this._onCustomLabelDockClick.bind(this));
+    }
+}
+

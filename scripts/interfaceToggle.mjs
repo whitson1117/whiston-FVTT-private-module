@@ -1,10 +1,12 @@
+import {MODULE_ID} from "./constants.mjs";
+
 export default class InterfaceToggle {
-    static get(tag, module = "mrkb-chat-enhancements") {
+    static get(tag, module = MODULE_ID) {
         if (!tag) return;
         return (game.settings.get(module, `ui-${tag}`)) ? "active" : "";
     }
 
-    static set(tag, module = "mrkb-chat-enhancements") {
+    static set(tag, module = MODULE_ID) {
         if (!tag) return;
         const target = document.querySelectorAll(`[data-widget=${tag}]`);
         let isActive = game.settings.get(module, `ui-${tag}`);

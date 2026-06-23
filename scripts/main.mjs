@@ -7,6 +7,8 @@ import ChatHotkey from "./chatHotkey.mjs";
 import TurnNotice from "./turnNotice.mjs";
 import SystemSpecific from "./systemSpecific.js";
 import TypingAlert from "./typingAlert.mjs";
+import {MODULE_ID} from "./constants.mjs";
+import "./theatre/module.js";
 
 Hooks.once("init", () => {
     //CONFIG.debug.hooks = true;
@@ -15,7 +17,7 @@ Hooks.once("init", () => {
 });
 Hooks.once("ready", () => {
     const chatLog = ui.chat.element.querySelector(".chat-log");
-    const isColoredChat = game.settings.get("mrkb-chat-enhancements", "colored-chat");
+    const isColoredChat = game.settings.get(MODULE_ID, "colored-chat");
     if (isColoredChat) chatLog.classList.remove("themed", "theme-light");
 });
 Hooks.on("renderAbstractSidebarTab", (tab) => {
@@ -28,8 +30,8 @@ Hooks.on("renderAbstractSidebarTab", (tab) => {
         TypingAlert.clearOldTypingAlerts();
         TypingAlert.startClearingInterval();
 
-        const isColoredChat = game.settings.get("mrkb-chat-enhancements", "colored-chat");
-        const isNewFont = game.settings.get("mrkb-chat-enhancements", "new-font");
+        const isColoredChat = game.settings.get(MODULE_ID, "colored-chat");
+        const isNewFont = game.settings.get(MODULE_ID, "new-font");
 
         const chatLog = tab.element.querySelector(".chat-log");
         if (!chatLog) return;
@@ -45,6 +47,11 @@ Hooks.on("preCreateChatMessage", (message, source, options, id) => ChatHandler.p
 Hooks.on("createChatMessage", (message, option, id) => ChatHandler.createProcesser(message, option, id));
 Hooks.on("renderChatMessageHTML", (message, html, data) => ChatHandler.renderProcesser(message, html, data));
 Hooks.on("deleteChatMessage", ChatHandler.fixChatFlag.bind(ChatHandler, false));
+Hooks.on("updateUser", (user, changed) => {
+    if (user.id === game.user.id && Object.hasOwn(changed, "character")) {
+        ActorControl._refresh();
+    }
+});
 Hooks.on("getChatMessageContextOptions", (chatLog, options) => {
     const editOption = {
         name: game.i18n.localize("MRKB.Edit"),

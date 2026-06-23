@@ -14,16 +14,33 @@
   ],
   "relationships": {
     "systems": [],
-    "requires": []
+    "requires": [
+      {
+        "id": "lib-wrapper",
+        "type": "module",
+        "manifest": "https://github.com/ruipin/fvtt-lib-wrapper/releases/latest/download/module.json"
+      },
+      {
+        "id": "socketlib",
+        "type": "module",
+        "manifest": "https://raw.githubusercontent.com/manuelVo/foundryvtt-socketlib/master/module.json"
+      }
+    ]
   },
+  "socket": true,
   "esmodules": [
     "scripts/main.mjs"
   ],
   "scripts": [
+    "scripts/theatre/scripts/libs/tween-shim.js",
+    "scripts/theatre/scripts/libs/ffontsloader/fontsloader.min.js",
+    "scripts/theatre/scripts/libs/pixi-gif/pixi-gif.js",
     "scripts/lib/lib.js"
   ],
   "styles": [
-    "styles/main.css"
+    "styles/main.css",
+    "styles/theatre.css",
+    "styles/theatreBridge.css"
   ],
   "languages": [
     {
@@ -40,6 +57,22 @@
       "lang": "en",
        "name": "English",
        "path": "lang/en.json"
+    }
+  ],
+  "packs": [
+    {
+      "name": "theatre-inserts-macros",
+      "label": "Theatre Inserts Macros",
+      "path": "packs/theatre-inserts-macros",
+      "type": "Macro",
+      "private": false,
+      "module": "whiston-FVTT-private-module",
+      "ownership": {
+        "PLAYER": "NONE",
+        "TRUSTED": "NONE",
+        "ASSISTANT": "OWNER"
+      },
+      "flags": {}
     }
   ],
   "url": "https://github.com/whitson1117/whiston-FVTT-private-module",

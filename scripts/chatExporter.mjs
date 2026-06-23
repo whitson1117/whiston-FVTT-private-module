@@ -1,4 +1,4 @@
-import {MODULE_PATH} from "./constants.mjs";
+import {MODULE_ID, MODULE_PATH} from "./constants.mjs";
 
 export default class ChatExporter {
     static exporter() {
@@ -91,8 +91,8 @@ export default class ChatExporter {
     static createHTML(callback, isOrdered, css) {
         const messagesTemp = game.messages.contents;
         const option = isOrdered ? (a, b) => {
-            let prev = a.flags["mrkb-chat-enhancements"]?.order;
-            let next = b.flags["mrkb-chat-enhancements"]?.order;
+            let prev = a.flags[MODULE_ID]?.order;
+            let next = b.flags[MODULE_ID]?.order;
             if (String(prev) && String(next)) return (prev - next);
             else return (a.timestamp - b.timestamp);
         } : (a, b) => {

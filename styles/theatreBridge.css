@@ -1,0 +1,26 @@
+#actor-favorites .actor-icon.staged {
+    border-color: #2fbf71;
+}
+
+#actor-favorites .actor-icon.staged::after,
+#actor-control .actor-icon.staged::after {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    content: "";
+    background: #2fbf71;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(47, 191, 113, 0.8);
+    z-index: 2;
+}
+
+#actor-favorites .actor-icon.staged::after {
+    right: 2px;
+    bottom: 2px;
+}
+
+#actor-control .actor-icon.staged::after {
+    left: 4px;
+    top: 4px;
+}
