@@ -500,11 +500,7 @@ Hooks.on("renderChatLog", function (app, html, data) {
     if (app.id === "chat-popout") {
         return;
     }
-    setupTheatre()?.initialize();
-    if (!window.Theatre) {
-        window.Theatre = Theatre;
-        window.theatre = theatre;
-    }
+    initializeTheatre();
 });
 
 /**
@@ -537,16 +533,41 @@ Hooks.on("getActorContextOptions", async (app, menuItems) => {
 });
 
 let theatre = null;
+let keybindingsRegistered = false;
 
-const setupTheatre = () => {
-    if (theatre) return theatre;
+export const setupTheatre = () => {
+    if (theatre) {
+        const module = game.modules.get(CONSTANTS.MODULE_ID);
+        if (module) module.api = API;
+        window.Theatre ??= Theatre;
+        window.theatre = theatre;
+        return theatre;
+    }
     theatre = new Theatre();
 
-    game.modules.get(CONSTANTS.MODULE_ID).api = API;
+    const module = game.modules.get(CONSTANTS.MODULE_ID);
+    if (module) module.api = API;
+    window.Theatre ??= Theatre;
+    window.theatre = theatre;
 
     // Module keybinds
-    registerKeybindings();
+    if (!keybindingsRegistered) {
+        try {
+            registerKeybindings();
+            keybindingsRegistered = true;
+        } catch (error) {
+            Logger.warn("Theatre keybindings could not be registered at this stage.", false, error);
+        }
+    }
     return theatre;
+};
+
+export const initializeTheatre = () => {
+    const instance = setupTheatre();
+    instance?.initialize();
+    window.Theatre ??= Theatre;
+    window.theatre = instance;
+    return !!instance?.theatreNavBar;
 };
 
 Hooks.once("setup", setupTheatre);

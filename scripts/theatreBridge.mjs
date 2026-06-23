@@ -28,6 +28,18 @@ export default class TheatreBridge {
         return !!this.instance?.theatreNavBar;
     }
 
+    static async ensureReady() {
+        if (this.isReady()) return true;
+        try {
+            const theatreModule = await import("./theatre/module.js");
+            theatreModule?.initializeTheatre?.();
+        } catch (error) {
+            console.error(`${MODULE_ID} | Theatre integration failed to initialize`, error);
+        }
+        this.instance?.initialize?.();
+        return this.isReady();
+    }
+
     static isActorStaged(actorId) {
         const actor = this.getActor(actorId);
         if (!actor || !this.isReady()) return false;
@@ -37,7 +49,7 @@ export default class TheatreBridge {
     static async toggleActorStage(actorId) {
         const actor = this.getActor(actorId);
         if (!actor) return false;
-        if (!this.isReady()) {
+        if (!await this.ensureReady()) {
             ui.notifications?.warn(game.i18n.localize("MRKB.TheatreNotReady") || "Theatre is not ready yet.");
             return false;
         }
@@ -67,7 +79,7 @@ export default class TheatreBridge {
     }
 
     static async activateActor(actorId) {
-        if (!this.isReady()) return;
+        if (!await this.ensureReady()) return;
         const actor = this.getActor(actorId);
         if (!actor || !this.isActorStaged(actorId)) return;
 
@@ -79,7 +91,7 @@ export default class TheatreBridge {
     }
 
     static async clearSpeaking() {
-        if (!this.isReady()) return;
+        if (!await this.ensureReady()) return;
 
         const theatreId = this.instance.speakingAs;
         if (theatreId && theatreId !== NARRATOR) {

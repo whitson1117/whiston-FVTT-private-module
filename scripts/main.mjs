@@ -9,8 +9,9 @@ import SystemSpecific from "./systemSpecific.js";
 import TypingAlert from "./typingAlert.mjs";
 import {MODULE_ID} from "./constants.mjs";
 
-import("./theatre/module.js").catch((error) => {
+const theatreModuleReady = import("./theatre/module.js").catch((error) => {
     console.error(`${MODULE_ID} | Theatre integration failed to load`, error);
+    return null;
 });
 
 const getHTMLElement = (element) => element instanceof HTMLElement ? element : element?.[0] ?? null;
@@ -34,6 +35,7 @@ Hooks.on("renderAbstractSidebarTab", (tab) => {
         TypingAlert.initialize();
         TypingAlert.clearOldTypingAlerts();
         TypingAlert.startClearingInterval();
+        theatreModuleReady.then((theatreModule) => theatreModule?.initializeTheatre?.());
 
         const isColoredChat = game.settings.get(MODULE_ID, "colored-chat");
         const isNewFont = game.settings.get(MODULE_ID, "new-font");

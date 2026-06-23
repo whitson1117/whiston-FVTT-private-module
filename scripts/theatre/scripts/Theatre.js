@@ -207,7 +207,7 @@ export class Theatre {
         if (!chatControls) {
             chatControls = document.getElementById("chat-controls");
         }
-        let chatForm = document.getElementById("chat-form");
+        let chatForm = document.getElementById("chat-form") ?? document.querySelector(".chat-form");
         let chatMessage = document.getElementById("chat-message");
         if (!chatControls || !chatForm || !chatMessage) {
             Logger.warn("Theatre chat controls are not available yet; deferring initialization.", false);
