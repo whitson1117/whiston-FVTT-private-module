@@ -8,7 +8,12 @@ import TurnNotice from "./turnNotice.mjs";
 import SystemSpecific from "./systemSpecific.js";
 import TypingAlert from "./typingAlert.mjs";
 import {MODULE_ID} from "./constants.mjs";
-import "./theatre/module.js";
+
+import("./theatre/module.js").catch((error) => {
+    console.error(`${MODULE_ID} | Theatre integration failed to load`, error);
+});
+
+const getHTMLElement = (element) => element instanceof HTMLElement ? element : element?.[0] ?? null;
 
 Hooks.once("init", () => {
     //CONFIG.debug.hooks = true;
@@ -16,9 +21,9 @@ Hooks.once("init", () => {
     if (game.system.id === "fatex") SystemSpecific.killFateXChatStyles();
 });
 Hooks.once("ready", () => {
-    const chatLog = ui.chat.element.querySelector(".chat-log");
+    const chatLog = getHTMLElement(ui.chat?.element)?.querySelector(".chat-log");
     const isColoredChat = game.settings.get(MODULE_ID, "colored-chat");
-    if (isColoredChat) chatLog.classList.remove("themed", "theme-light");
+    if (isColoredChat) chatLog?.classList.remove("themed", "theme-light");
 });
 Hooks.on("renderAbstractSidebarTab", (tab) => {
     if (tab.id === "chat") {
@@ -33,7 +38,7 @@ Hooks.on("renderAbstractSidebarTab", (tab) => {
         const isColoredChat = game.settings.get(MODULE_ID, "colored-chat");
         const isNewFont = game.settings.get(MODULE_ID, "new-font");
 
-        const chatLog = tab.element.querySelector(".chat-log");
+        const chatLog = getHTMLElement(tab.element)?.querySelector(".chat-log");
         if (!chatLog) return;
         if (isColoredChat) chatLog.classList.add("color-applied");
         if (isNewFont) chatLog.classList.add("font-applied");

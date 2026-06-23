@@ -113,6 +113,7 @@ Hooks.on("collapseSidebar", function (a, collapsed) {
  */
 Hooks.on("renderChatInput", () => {
     const chatMessage = document.getElementById("chat-message");
+    if (!chatMessage?.parentElement) return;
     const isChatOutsideChatLog = chatMessage.parentElement.id === "chat-notifications";
     // The chat can change position depending on the sidebar state
     if (!isChatOutsideChatLog) {
@@ -143,7 +144,7 @@ Hooks.on("renderChatInput", () => {
     $(".theatre-control-chat-cover-wrapper").insertBefore("#chat-message");
     $(".theatre-emote-menu").insertBefore(".theatre-control-group");
 
-    Theatre.resizeBars(ui.sidebar._collapsed);
+    Theatre.resizeBars(ui.sidebar?._collapsed ?? false);
 });
 
 /**
@@ -264,7 +265,11 @@ Hooks.on("preCreateChatMessage", function (chatMessage, data) {
         if (!chatData.flags) {
             chatData.flags = {};
         }
-        chatData.flags[CONSTANTS.MODULE_ID] = { theatreMessage: true };
+        chatData.flags[CONSTANTS.MODULE_ID] = {
+            ...(chatMessage.flags?.[CONSTANTS.MODULE_ID] ?? {}),
+            ...(chatData.flags?.[CONSTANTS.MODULE_ID] ?? {}),
+            theatreMessage: true,
+        };
     }
     // Alter message data
     // append chat emote braces
@@ -495,7 +500,7 @@ Hooks.on("renderChatLog", function (app, html, data) {
     if (app.id === "chat-popout") {
         return;
     }
-    theatre.initialize();
+    setupTheatre()?.initialize();
     if (!window.Theatre) {
         window.Theatre = Theatre;
         window.theatre = theatre;
@@ -531,16 +536,20 @@ Hooks.on("getActorContextOptions", async (app, menuItems) => {
     );
 });
 
-// Fixed global singleton/global object
 let theatre = null;
-Hooks.once("setup", () => {
+
+const setupTheatre = () => {
+    if (theatre) return theatre;
     theatre = new Theatre();
 
     game.modules.get(CONSTANTS.MODULE_ID).api = API;
 
     // Module keybinds
     registerKeybindings();
-});
+    return theatre;
+};
+
+Hooks.once("setup", setupTheatre);
 
 /**
  * Hide player list (and macro hotbar) when stage is active (and not suppressed)
@@ -571,21 +580,14 @@ Hooks.on("theatreDockActive", (insertCount) => {
  * If Argon is active, wrap CombatHudCanvasElement#toggleMacroPlayers to prevent playesr list and macro hotbar from being shown
  */
 Hooks.once("ready", () => {
-    // Do anything once the module is ready
-    if (!game.modules.get("lib-wrapper")?.active && game.user?.isGM) {
-        let word = "install and activate";
-        if (game.modules.get("lib-wrapper")) word = "activate";
-        throw Logger.error(`Requires the 'libWrapper' module. Please ${word} it.`);
-    }
-    if (!game.modules.get("socketlib")?.active && game.user?.isGM) {
-        let word = "install and activate";
-        if (game.modules.get("socketlib")) word = "activate";
-        throw Logger.error(`Requires the 'socketlib' module. Please ${word} it.`);
-    }
     if (!game.settings.get(CONSTANTS.MODULE_ID, "autoHideBottom")) {
         return;
     }
     if (!game.modules.get("enhancedcombathud")?.active) {
+        return;
+    }
+    if (!globalThis.libWrapper) {
+        Logger.warn("libWrapper is not active; skipping Enhanced Combat HUD integration.", false);
         return;
     }
     libWrapper.register(

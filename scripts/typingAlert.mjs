@@ -3,6 +3,8 @@ import {MODULE_ID} from "./constants.mjs";
 
 export default class TypingAlert {
     static initialize() {
+        document.querySelector("#typing-alert-container")?.remove();
+
         const container = document.createElement("div");
         container.id = "typing-alert-container";
 
@@ -11,10 +13,14 @@ export default class TypingAlert {
 
         container.append(text);
 
-        const chatForm = document.querySelector(".chat-form");
+        const chatForm = document.querySelector(".chat-form, #chat-form");
+        if (!chatForm) return;
         chatForm.append(container);
 
-        game.socket.on(`module.${MODULE_ID}`, this.receiveTypingAlert);
+        if (!this.socketRegistered) {
+            game.socket.on(`module.${MODULE_ID}`, this.receiveTypingAlert);
+            this.socketRegistered = true;
+        }
     }
     static emitTypingAlert() {
         game.socket.emit(`module.${MODULE_ID}`, {
@@ -42,6 +48,7 @@ export default class TypingAlert {
     static handleTypingAlert(players) {
         const typingAlertContainer = document.querySelector("#typing-alert-container");
         const typingAlertText = document.querySelector("#typing-alert-text");
+        if (!typingAlertContainer || !typingAlertText) return;
 
         const playersList = players.map(e => e.userName).filter(name => name !== game.user.name).sort();
 
@@ -58,7 +65,8 @@ export default class TypingAlert {
         Setting.set("typing-players", updatedPlayers);
     }
     static startClearingInterval() {
-        setInterval(() => {
+        if (this.clearIntervalId) return;
+        this.clearIntervalId = setInterval(() => {
             this.clearOldTypingAlerts();
         }, 1000);
     }

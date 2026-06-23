@@ -2,6 +2,9 @@ import {ASSETS_PATH} from "./constants.mjs";
 
 export default class ChatEditor {
     static initialize() {
+        document.querySelector("#chat-editor")?.remove();
+        document.querySelector("#chat-editor-placeholder")?.remove();
+
         const placeholder = document.createElement("div");
         placeholder.id = "chat-editor-placeholder";
         placeholder.innerHTML = "<i class=\"fa-solid fa-pen-to-square\"></i>" + game.i18n.localize("MRKB.ChatEditPlaceholder");
@@ -12,7 +15,8 @@ export default class ChatEditor {
         editor.classList.add("disabled");
         editor.onkeydown = (e) => ChatEditor._onKeyDown(e);
 
-        const chatForm = document.querySelector(".chat-form");
+        const chatForm = document.querySelector(".chat-form, #chat-form");
+        if (!chatForm) return;
         chatForm.append(editor, placeholder);
     }
     static _onKeyDown(e) {
@@ -23,9 +27,11 @@ export default class ChatEditor {
         ev.preventDefault();
         const message = document.querySelector("#chat-message");
         const editor = document.querySelector("#chat-editor");
+        if (!message || !editor) return;
 
         const id = editor.dataset.mid;
         const msg = game.messages.get(id);
+        if (!msg) return;
 
         message.classList.remove("disabled");
         editor.classList.add("disabled");
@@ -42,6 +48,7 @@ export default class ChatEditor {
     static _quit() {
         const message = document.querySelector("#chat-message");
         const editor = document.querySelector("#chat-editor");
+        if (!message || !editor) return;
 
         message.classList.remove("disabled");
         editor.classList.add("disabled");
@@ -53,6 +60,7 @@ export default class ChatEditor {
         const message = game.messages.get(id);
         const chatter = document.querySelector("#chat-message");
         const editor = document.querySelector("#chat-editor");
+        if (!chatter || !editor || !message) return;
 
         chatter.classList.add("disabled");
         editor.classList.remove("disabled");

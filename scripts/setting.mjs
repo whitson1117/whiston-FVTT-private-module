@@ -1,14 +1,20 @@
 import TypingAlert from "./typingAlert.mjs";
+import {MODULE_ID} from "./constants.mjs";
+
+const getChatLog = () => {
+	const chatElement = ui.chat?.element instanceof HTMLElement ? ui.chat.element : ui.chat?.element?.[0] ?? null;
+	return chatElement?.querySelector(".chat-log") ?? document.querySelector(".chat-log");
+};
 
 export default class Setting {
 	static get(key) {
-		return game.settings.get("whiston-FVTT-private-module", key);
+		return game.settings.get(MODULE_ID, key);
 	}
 	static set(type, url) {
-	    game.settings.set("whiston-FVTT-private-module", type, url);
+	    game.settings.set(MODULE_ID, type, url);
 	}
 	static register() {
-		game.settings.register("whiston-FVTT-private-module", "font-size", {
+		game.settings.register(MODULE_ID, "font-size", {
 			name: "MRKB.FontSize",
 			hint: "MRKB.FontSizeHint",
 			scope: "client",
@@ -19,9 +25,9 @@ export default class Setting {
 				max: 20
 			},
 			default: 14,
-			onChange: (value) => document.querySelector(".chat-log").style.setProperty("--font-size", value + "px")
+			onChange: (value) => getChatLog()?.style.setProperty("--font-size", value + "px")
 		});
-		game.settings.register("whiston-FVTT-private-module", "use-portrait", {
+		game.settings.register(MODULE_ID, "use-portrait", {
 			name: "MRKB.UsePortrait",
 			hint: "MRKB.UsePortraitHint",
 			scope: "world",
@@ -30,7 +36,7 @@ export default class Setting {
 			default: true,
 			onChange: () => window.location.reload()
 		});
-		game.settings.register("whiston-FVTT-private-module", "chat-merge", {
+		game.settings.register(MODULE_ID, "chat-merge", {
 			name: "MRKB.ChatMerge",
 			hint: "MRKB.ChatMergeHint",
 			scope: "client",
@@ -39,7 +45,7 @@ export default class Setting {
 			default: true,
 			onChange: () => window.location.reload()
 		});
-		game.settings.register("whiston-FVTT-private-module", "colored-chat", {
+		game.settings.register(MODULE_ID, "colored-chat", {
 			name: "MRKB.ColoredChat",
 			hint: "MRKB.ColoredChatHint",
 			scope: "client",
@@ -47,11 +53,10 @@ export default class Setting {
 			type: Boolean,
 			default: true,
 			onChange: (value) => {
-				const chatLog = ui.chat.element.querySelector(".chat-log");
-				chatLog.classList.toggle("color-applied", value);
+				getChatLog()?.classList.toggle("color-applied", value);
 			}
 		});
-		game.settings.register("whiston-FVTT-private-module", "new-font", {
+		game.settings.register(MODULE_ID, "new-font", {
 			name: "MRKB.NewFont",
 			hint: "MRKB.NewFontHint",
 			scope: "client",
@@ -59,19 +64,18 @@ export default class Setting {
 			type: Boolean,
 			default: true,
 			onChange: (value) => {
-				const chatLog = ui.chat.element.querySelector(".chat-log");
-				chatLog.classList.toggle("font-applied", value);
+				getChatLog()?.classList.toggle("font-applied", value);
 			}
 		});
 
-		game.settings.register("whiston-FVTT-private-module", "actor-favorites", {
+		game.settings.register(MODULE_ID, "actor-favorites", {
 			name: "액터 즐겨찾기",
 			scope: "client",
 			config: false,
 			type: Array,
 			default: []
 		});
-		game.settings.register("whiston-FVTT-private-module", "talk-mode", {
+		game.settings.register(MODULE_ID, "talk-mode", {
 			name: "대화 모드",
 			scope: "client",
 			config: false,
@@ -81,7 +85,7 @@ export default class Setting {
 		
 		/*UTILITY*/
 
-		game.settings.register("whiston-FVTT-private-module", "typing-players", {
+		game.settings.register(MODULE_ID, "typing-players", {
 			name: "입력 중인 플레이어",
 			scope: "client",
 			config: false,
@@ -92,7 +96,7 @@ export default class Setting {
 
 		/*UI Toggle*/
 
-		game.settings.register("whiston-FVTT-private-module", "ui-actor", {
+		game.settings.register(MODULE_ID, "ui-actor", {
 			name: "액터 셀렉터 토글",
 			hint: "",
 			scope: "client",
@@ -100,7 +104,7 @@ export default class Setting {
 			type: Boolean,
 			default: false
 		});
-		game.settings.register("whiston-FVTT-private-module", "ui-favorites", {
+		game.settings.register(MODULE_ID, "ui-favorites", {
 			name: "액터 즐겨찾기 토글",
 			hint: "",
 			scope: "client",
@@ -108,7 +112,7 @@ export default class Setting {
 			type: Boolean,
 			default: true
 		});
-		game.settings.register("whiston-FVTT-private-module", "ui-msgMode", {
+		game.settings.register(MODULE_ID, "ui-msgMode", {
 			name: "메시지 모드 토글",
 			hint: "",
 			scope: "client",

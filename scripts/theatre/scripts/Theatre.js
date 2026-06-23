@@ -97,7 +97,7 @@ export class Theatre {
         activateStagedByID: (i) => {
             const ids = Object.keys(Theatre.instance.stage);
             Theatre.instance.activateInsertById(ids[i]);
-            document.getElementById("chat-message").blur();
+            document.getElementById("chat-message")?.blur();
         },
         removeFromStagedByID: (i) => {
             const ids = Object.keys(Theatre.instance.stage);
@@ -193,9 +193,9 @@ export class Theatre {
         // set z-index class for other UI elements
         const uiAbove = game.settings.get(CONSTANTS.MODULE_ID, "showUIAboveStage");
         const leftAbove = uiAbove == "left" || uiAbove == "both";
-        if (leftAbove) document.getElementById("ui-left").classList.add("z-higher");
+        if (leftAbove) document.getElementById("ui-left")?.classList.add("z-higher");
         const middleAbove = uiAbove == "middle" || uiAbove == "both";
-        if (middleAbove) document.getElementById("ui-middle").classList.add("z-higher");
+        if (middleAbove) document.getElementById("ui-middle")?.classList.add("z-higher");
 
         // set dock canvas hard dimensions after CSS has calculated it
 
@@ -207,9 +207,15 @@ export class Theatre {
         if (!chatControls) {
             chatControls = document.getElementById("chat-controls");
         }
-        let controlButtons = chatControls.getElementsByClassName("control-buttons")[0];
         let chatForm = document.getElementById("chat-form");
         let chatMessage = document.getElementById("chat-message");
+        if (!chatControls || !chatForm || !chatMessage) {
+            Logger.warn("Theatre chat controls are not available yet; deferring initialization.", false);
+            this.theatreGroup?.remove();
+            this.theatreGroup = null;
+            return;
+        }
+        let controlButtons = chatControls.getElementsByClassName("control-buttons")[0];
 
         this.theatreControls = document.createElement("div");
         this.theatreNavBar = document.createElement("div");
@@ -454,7 +460,6 @@ export class Theatre {
      */
     _initSocket() {
         // module socket
-        Hooks.once("socketlib.ready", registerSocket);
         registerSocket();
         theatreSocket.register("processEvent", (payload) => {
             Logger.debug("Received packet", payload);
@@ -5634,7 +5639,7 @@ export class Theatre {
      * @param ev (Event) : Event that triggered this handler
      */
     handleWindowResize(ev) {
-        TheatreHelpers.resizeBars(ui.sidebar._collapsed);
+        TheatreHelpers.resizeBars(ui.sidebar?._collapsed ?? false);
 
         // emote menu
         if (Theatre.instance.theatreEmoteMenu)

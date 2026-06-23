@@ -1,13 +1,23 @@
-import {Theatre} from "./theatre/scripts/Theatre.js";
-import CONSTANTS from "./theatre/scripts/constants/constants.js";
+import {MODULE_ID} from "./constants.mjs";
+
+const THEATRE_PREFIX = "theatre-";
+const NARRATOR = "Narrator";
 
 export default class TheatreBridge {
     static get instance() {
-        return Theatre?.instance ?? window.theatre ?? null;
+        return this.theatreClass?.instance ?? window.theatre ?? null;
+    }
+
+    static get theatreClass() {
+        return window.Theatre ?? null;
+    }
+
+    static get api() {
+        return game.modules.get(MODULE_ID)?.api ?? null;
     }
 
     static getTheatreId(actorId) {
-        return `${CONSTANTS.PREFIX_ACTOR_ID}${actorId}`;
+        return `${THEATRE_PREFIX}${actorId}`;
     }
 
     static getActor(actorId) {
@@ -21,7 +31,7 @@ export default class TheatreBridge {
     static isActorStaged(actorId) {
         const actor = this.getActor(actorId);
         if (!actor || !this.isReady()) return false;
-        return Theatre.isActorStaged(actor);
+        return this.api?.isActorStaged?.(actor) ?? this.theatreClass?.isActorStaged?.(actor) ?? false;
     }
 
     static async toggleActorStage(actorId) {
@@ -32,12 +42,14 @@ export default class TheatreBridge {
             return false;
         }
 
-        if (Theatre.isActorStaged(actor)) {
-            Theatre.removeFromNavBar(actor);
+        if (this.isActorStaged(actorId)) {
+            if (this.api?.removeFromNavBar) this.api.removeFromNavBar(actor);
+            else this.theatreClass?.removeFromNavBar?.(actor);
             return false;
         }
 
-        Theatre.addToNavBar(actor);
+        if (this.api?.addToNavBar) this.api.addToNavBar(actor);
+        else this.theatreClass?.addToNavBar?.(actor);
         await this.activateActor(actorId);
         return true;
     }
@@ -57,7 +69,7 @@ export default class TheatreBridge {
     static async activateActor(actorId) {
         if (!this.isReady()) return;
         const actor = this.getActor(actorId);
-        if (!actor || !Theatre.isActorStaged(actor)) return;
+        if (!actor || !this.isActorStaged(actorId)) return;
 
         const theatreId = this.getTheatreId(actorId);
         if (this.instance.speakingAs !== theatreId) {
@@ -70,7 +82,7 @@ export default class TheatreBridge {
         if (!this.isReady()) return;
 
         const theatreId = this.instance.speakingAs;
-        if (theatreId && theatreId !== CONSTANTS.NARRATOR) {
+        if (theatreId && theatreId !== NARRATOR) {
             await this.instance.activateInsertById(theatreId);
         }
         this.instance.removeUserTyping(game.user.id);

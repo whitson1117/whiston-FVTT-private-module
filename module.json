@@ -14,7 +14,8 @@
   ],
   "relationships": {
     "systems": [],
-    "requires": [
+    "requires": [],
+    "recommends": [
       {
         "id": "lib-wrapper",
         "type": "module",

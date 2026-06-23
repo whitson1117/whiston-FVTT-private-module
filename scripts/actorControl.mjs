@@ -13,7 +13,10 @@ export default class ActorControl {
         actorControl.append(favoriteBar, selector);
 
         const jumpToBottom = document.querySelector(".jump-to-bottom");
-        jumpToBottom.after(actorControl);
+        const fallbackAnchor = document.querySelector("#chat-form, .chat-form, #chat-controls, .chat-controls, #chat");
+        if (jumpToBottom) jumpToBottom.after(actorControl);
+        else if (fallbackAnchor?.id === "chat") fallbackAnchor.append(actorControl);
+        else fallbackAnchor?.after(actorControl);
     }
     static _createSelector() {
         const title = document.createElement("a");
@@ -217,8 +220,9 @@ export default class ActorControl {
         this._setFavorite();
         const reset = document.querySelector("#actor-reset");
         if (!reset) return;
-        if (game.user.character === null) reset.classList.add("active");
-        else reset.classList.remove("active");
+        const currentActorId = game.user.character?.id;
+        reset.classList.toggle("active", !currentActorId);
+        reset.classList.toggle("staged", !!currentActorId && TheatreBridge.isActorStaged(currentActorId));
     }
     static _select(id) {
         game.user.update({ character : id }).then(() => {
